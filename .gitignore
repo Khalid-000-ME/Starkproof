@@ -41,3 +41,5 @@ exectest/
 cairo-run
 release.tar.gz
 trace.bin
+
+*.csv

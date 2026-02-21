@@ -397,38 +397,6 @@ export default function OnboardPage() {
                         <div className="field mb-4">
                             <div className="flex items-center justify-between mb-2">
                                 <label className="label" style={{ marginBottom: 0 }}>Wallet Addresses ({assetType} - one per line)</label>
-                                {(assetType === "ETH" || assetType === "USDC") && (
-                                    <button
-                                        className="btn btn-ghost btn-sm"
-                                        style={{ height: 28, minHeight: 28, fontSize: 12 }}
-                                        onClick={async () => {
-                                            if (typeof window !== "undefined" && (window as any).ethereum) {
-                                                try {
-                                                    const accounts = await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
-                                                    if (accounts?.[0]) {
-                                                        const existing = btcAddresses.trim() ? btcAddresses.trim() + "\n" : "";
-                                                        if (!existing.includes(accounts[0])) {
-                                                            setBtcAddresses(existing + accounts[0]);
-                                                        }
-                                                    }
-                                                } catch (e: any) {
-                                                    setError("MetaMask connection failed: " + e.message);
-                                                }
-                                            } else {
-                                                setError("MetaMask is not installed in your browser.");
-                                            }
-                                        }}
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 36 36" fill="none" style={{ marginRight: 6 }}>
-                                            <path d="M34.5 7.1l-10.7-3.9-3.2 16.1 13.9-12.2" fill="#E17726" />
-                                            <path d="M1.5 7.1l10.7-3.9 3.2 16.1L1.5 7.1" fill="#E27625" />
-                                            <path d="M26.4 20L31 29l-11.8 5.6 1.7-18.4L26.4 20" fill="#E27625" />
-                                            <path d="M9.6 20L5 29l11.8 5.6-1.7-18.4L9.6 20" fill="#E27625" />
-                                            <path d="M13.2 12.8L18 5 22.8 12.8l-4.8 19-4.8-19" fill="#F6851B" />
-                                        </svg>
-                                        Connect MetaMask
-                                    </button>
-                                )}
                             </div>
                             <textarea
                                 className="input input-mono"
