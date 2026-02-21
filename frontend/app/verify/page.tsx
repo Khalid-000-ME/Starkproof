@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { ShieldCheckIcon, DocumentTextIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
 
 export default function VerifyPage() {
@@ -7,6 +7,18 @@ export default function VerifyPage() {
     const [result, setResult] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const fileRef = useRef<HTMLInputElement>(null);
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const val = (ev.target?.result as string) || "";
+            setStarkProof(val);
+        };
+        reader.readAsText(file);
+    };
 
     async function handleVerify() {
         if (!starkProof.trim()) {
@@ -61,8 +73,14 @@ export default function VerifyPage() {
                 </div>
 
                 <div className="card card-lg mb-6">
-                    <div className="section-title flex items-center gap-2 mb-4">
-                        <DocumentTextIcon style={{ width: 16, height: 16 }} /> STARK Proof Bytecode
+                    <div className="section-title flex justify-between items-center mb-4 w-full">
+                        <div className="flex items-center gap-2">
+                            <DocumentTextIcon style={{ width: 16, height: 16 }} /> STARK Proof Bytecode
+                        </div>
+                        <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()}>
+                            Upload JSON
+                        </button>
+                        <input type="file" ref={fileRef} accept=".json" style={{ display: "none" }} onChange={handleFileUpload} />
                     </div>
 
                     <div className="field mb-4">
@@ -70,7 +88,7 @@ export default function VerifyPage() {
                             className="input input-mono w-full"
                             style={{ minHeight: "250px", resize: "vertical" }}
                             placeholder='{"proof": {"commitments": ...'
-                            value={starkProof}
+                            value={starkProof.length > 3000 ? starkProof.slice(0, 500) + "\n\n... [Bytecode Truncated for View] ...\n\n" + starkProof.slice(-500) : starkProof}
                             onChange={(e) => setStarkProof(e.target.value)}
                         />
                     </div>

@@ -1,7 +1,7 @@
 "use client";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { provider, REGISTRY_ADDRESS, feltToHash } from "@/lib/starknet";
 import ProofStatusBadge from "@/components/ProofStatusBadge";
 import ReserveRatioBand from "@/components/ReserveRatioBand";
@@ -49,6 +49,7 @@ export default function EntityPage() {
     const [starkProof, setStarkProof] = useState("");
     const [verifySTARKLoading, setVerifySTARKLoading] = useState(false);
     const [verifySTARKResult, setVerifySTARKResult] = useState<"none" | "success" | "fail">("none");
+    const fileRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         async function fetchEntity() {
@@ -142,8 +143,9 @@ export default function EntityPage() {
         fetchEntity();
     }, [idParam]);
 
-    async function handleVerifySTARK() {
-        if (!starkProof.trim()) return;
+    async function handleVerifySTARK(bytecode?: string) {
+        const payload = bytecode || starkProof;
+        if (!payload.trim()) return;
         setVerifySTARKLoading(true);
         setVerifySTARKResult("none");
 
@@ -153,7 +155,7 @@ export default function EntityPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     entityId: entity?.id,
-                    starkProofBytecode: starkProof
+                    starkProofBytecode: payload
                 })
             });
 
@@ -171,6 +173,35 @@ export default function EntityPage() {
         }
 
         setVerifySTARKLoading(false);
+    }
+
+    function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const val = (ev.target?.result as string) || "";
+            setStarkProof(val);
+        };
+        reader.readAsText(file);
+    }
+
+    async function handleAutoFetchAndVerify() {
+        setVerifySTARKLoading(true);
+        try {
+            const res = await fetch(`/api/proof/${entity?.id}`);
+            const data = await res.json();
+            if (data.starkProofBytecode) {
+                setStarkProof(data.starkProofBytecode);
+                await handleVerifySTARK(data.starkProofBytecode);
+            } else {
+                alert("Recent proof JSON not found for this entity on the server log.");
+            }
+        } catch (e) {
+            alert("Error fetching proof: " + String(e));
+        } finally {
+            setVerifySTARKLoading(false);
+        }
     }
 
     // Inclusion proof verification logic
@@ -313,21 +344,32 @@ export default function EntityPage() {
 
                     {/* True ZK Solvency Verification Widget */}
                     <div className="card">
-                        <div className="section-title mb-1">Verify True ZK Solvency</div>
-                        <p className="text-muted text-sm mb-4">
+                        <div className="section-title mb-1 flex justify-between items-center w-full">
+                            <span>Verify True ZK Solvency</span>
+                            <div className="flex gap-2">
+                                <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()}>
+                                    Upload JSON
+                                </button>
+                                <button className="btn btn-ghost btn-sm" onClick={handleAutoFetchAndVerify}>
+                                    Auto-Fetch & Verify
+                                </button>
+                                <input type="file" ref={fileRef} accept=".json" style={{ display: "none" }} onChange={handleFileUpload} />
+                            </div>
+                        </div>
+                        <p className="text-muted text-sm mb-4 mt-2">
                             Run the full Cairo STARK Verification check to mathematically prove total reserves exceed exactly this Merkle tree&apos;s liability sum.
                         </p>
                         <div className="mb-4">
                             <textarea
                                 className="input mono-sm w-full"
-                                style={{ minHeight: "80px", resize: "vertical" }}
-                                placeholder='Paste stark_proof.json bytecode here...'
-                                value={starkProof}
+                                style={{ minHeight: "80px", resize: "vertical", fontSize: 11 }}
+                                placeholder='Paste stark_proof.json bytecode here OR click "Upload JSON"'
+                                value={starkProof.length > 3000 ? starkProof.slice(0, 500) + "\n\n... [Bytecode Truncated for View] ...\n\n" + starkProof.slice(-500) : starkProof}
                                 onChange={e => setStarkProof(e.target.value)}
                             />
                         </div>
                         <div className="flex gap-2 items-center">
-                            <button className="btn btn-secondary btn-sm" onClick={handleVerifySTARK} disabled={verifySTARKLoading}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleVerifySTARK()} disabled={verifySTARKLoading}>
                                 {verifySTARKLoading ? "Verifying STARK Trace..." : "Verify STARK Proof"}
                             </button>
                             {verifySTARKResult === "success" && <div className="badge badge-green"><CheckCircleIcon style={{ width: 14, height: 14 }} /> Verified Solvency</div>}
