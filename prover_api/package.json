@@ -1,5 +1,5 @@
 {
-    "name": "zkreserves-prover-api",
+    "name": "starkproof-prover-api",
     "version": "1.0.0",
     "description": "True ZK STARK Stone-Prover API Server",
     "main": "server.js",

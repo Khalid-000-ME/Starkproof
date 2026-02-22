@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart TD
-    A([Visit zkReserves]) --> B{First time?}
+    A([Visit Starkproof]) --> B{First time?}
 
     B -->|Yes| C[/onboard]
     B -->|No| D[/dashboard]
@@ -49,7 +49,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A([Visit zkReserves]) --> B[/registry\nPublic Solvency Registry]
+    A([Visit Starkproof]) --> B[/registry\nPublic Solvency Registry]
 
     B --> C{Entity status}
     C -->|Active| D[Green badge\nValid proof on-chain]
@@ -74,7 +74,7 @@ flowchart TD
 
     B --> P[/verify\nAuditor Tool]
     P --> P1[Paste proof commitment\nand public inputs]
-    P1 --> P2[Independent verification\nno trust in zkReserves UI]
+    P1 --> P2[Independent verification\nno trust in Starkproof UI]
     P2 --> P3{Valid?}
     P3 -->|Yes| P4[Proof verified]
     P3 -->|No| P5[Proof invalid or tampered]

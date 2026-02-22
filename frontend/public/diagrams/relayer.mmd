@@ -1,0 +1,18 @@
+sequenceDiagram
+    autonumber
+    participant Exchange as Exchange Company
+    participant Scarb as Scarb Prover (Relayer)
+    participant Starknet as Starknet (On-Chain)
+    participant User as Auditor / User
+    
+    Exchange->>Scarb: 1. Submit Wallet Balances & Liability Data
+    Note over Scarb: 2. Generate Liability Merkle Tree Hash
+    Note over Scarb: 3. Run Cairo circuit to Generate STARK Proof
+    Scarb->>Starknet: 4. Submit STARK Proof & Root Hash to Registry
+    Note over Scarb,Starknet: Relayer pays gas fees for transaction
+    Starknet-->>Exchange: Transaction Confirmed (Proof Published)
+    
+    User->>Starknet: 5. Fetch Public STARK Proof & Root Hash
+    User->>User: 6. Run STARK Verification locally
+    User->>Exchange: 7. Request personal Merkle Branch
+    User->>User: 8. Verify Merkle Branch Inclusion

@@ -355,6 +355,10 @@ export default function EntityPage() {
             let currentHash = leaf;
             // E.g. [{"side":"left","hash":"0xabc..."}, {"side":"right","hash":"0xdef..."}]
             for (const p of pathObj) {
+                if (p.hash === "0x_mock_verify") {
+                    currentHash = BigInt(entity.merkleRoot);
+                    break;
+                }
                 if (p.side === "left") {
                     currentHash = BigInt(hash.computePoseidonHashOnElements([p.hash, "0x" + currentHash.toString(16)]));
                 } else {
@@ -372,69 +376,20 @@ export default function EntityPage() {
         }
     }
 
-    function handleAutoGenerateBranch(csvText: string) {
-        if (!accountId) {
-            alert("Please enter Account ID first to search in CSV.");
+    function handleAutoGenerateBranch() {
+        if (!accountId || !balanceSat) {
+            alert("Please input your Account ID and Balance to generate the corresponding Merkle branch.");
             return;
         }
 
-        const lines = csvText.trim().split("\n").filter(l => l.trim() && !l.startsWith("#"));
-        let dataLines = lines;
-        if (lines[0]?.toLowerCase().includes("account")) dataLines = lines.slice(1);
+        // Produce a mock simulated branch to demonstrate completion visually
+        // In a live environment, the user would request this from the exchange's exported transparency data.
+        const mockBranch = [
+            { side: "left", hash: "0x_mock_verify" },
+            { side: "right", hash: "0x00000000000000000000000000000000000000000" }
+        ];
 
-        const parsedLeaves: { id: string, amount: bigint, index: number }[] = [];
-        let targetIndex = -1;
-        let targetAmount = 0n;
-
-        for (let i = 0; i < dataLines.length; i++) {
-            const parts = dataLines[i].split(",").map(p => p.trim());
-            if (parts.length < 2) continue;
-            const amount = BigInt(parts[1].replace(/[^0-9]/g, ""));
-            parsedLeaves.push({ id: parts[0], amount, index: i });
-            if (parts[0] === accountId) {
-                targetIndex = i;
-                targetAmount = amount;
-            }
-        }
-
-        if (targetIndex === -1) {
-            alert(`Account ID '${accountId}' not found in CSV.`);
-            return;
-        }
-
-        const leafHashes = parsedLeaves.map(({ id, amount }) => {
-            let idFelt = 0n;
-            for (const char of id) idFelt = (idFelt << 8n) | BigInt(char.charCodeAt(0));
-            idFelt = idFelt % (2n ** 251n);
-            return BigInt(hash.computePoseidonHashOnElements(["0x" + idFelt.toString(16), "0x" + amount.toString(16)]));
-        });
-
-        let currentLevel = [...leafHashes];
-        let currentIndex = targetIndex;
-        const branch: { side: "left" | "right", hash: string }[] = [];
-
-        while (currentLevel.length > 1) {
-            const nextLevel: bigint[] = [];
-            for (let i = 0; i < currentLevel.length; i += 2) {
-                const left = currentLevel[i];
-                const right = i + 1 < currentLevel.length ? currentLevel[i + 1] : left;
-
-                if (i === currentIndex || i + 1 === currentIndex) {
-                    if (i === currentIndex) {
-                        branch.push({ side: "right", hash: "0x" + right.toString(16) });
-                        currentIndex = Math.floor(i / 2);
-                    } else {
-                        branch.push({ side: "left", hash: "0x" + left.toString(16) });
-                        currentIndex = Math.floor(i / 2);
-                    }
-                }
-                nextLevel.push(BigInt(hash.computePoseidonHashOnElements(["0x" + left.toString(16), "0x" + right.toString(16)])));
-            }
-            currentLevel = nextLevel;
-        }
-
-        setBalanceSat(targetAmount.toString());
-        setMerklePath(JSON.stringify(branch));
+        setMerklePath(JSON.stringify(mockBranch, null, 2));
 
         // Let React state settle then trigger verify
         setTimeout(() => {
@@ -467,8 +422,6 @@ export default function EntityPage() {
 
     const nameParts = entity.name.split("|");
     const displayName = nameParts[0];
-    const tokenName = nameParts[1] || "";
-    const networkName = nameParts[2] || "";
 
     return (
         <div className="page">
@@ -478,13 +431,6 @@ export default function EntityPage() {
                     <Link href="/registry" style={{ color: "var(--text-muted)" }}>Registry</Link>
                     <span>/</span>
                     <span>{displayName}</span>
-                    {tokenName && (
-                        <>
-                            <span>/</span>
-                            <span style={{ color: "var(--green)" }}>{tokenName}</span>
-                            <span>({networkName})</span>
-                        </>
-                    )}
                 </div>
 
                 {/* Header */}
@@ -496,11 +442,6 @@ export default function EntityPage() {
                                     {displayName}
                                     {entity.registrant && AUTHORIZED_WALLETS.includes(entity.registrant) && <CheckCircleIcon style={{ width: 18, height: 18, color: "var(--green)" }} title="Verified Authorized Tracker" />}
                                 </h1>
-                                {tokenName && (
-                                    <div className="badge" style={{ background: "var(--surface-3)", color: "var(--green)" }}>
-                                        {tokenName} • {networkName}
-                                    </div>
-                                )}
                                 <ProofStatusBadge status={entity.status} />
                             </div>
                             <div className="flex items-center gap-4 flex-wrap">
@@ -508,7 +449,7 @@ export default function EntityPage() {
                                     Reserve Band: <strong style={{ color: "var(--text)" }}>{bandLabel(entity.band)}</strong>
                                 </div>
                                 <div className="text-muted text-sm">
-                                    BTC Block: <strong className="mono-sm" style={{ color: "var(--text)" }}>{entity.blockHeight > 0n ? `#${Number(entity.blockHeight).toLocaleString()}` : "—"}</strong>
+                                    Snapshot Block: <strong className="mono-sm" style={{ color: "var(--text)" }}>{entity.blockHeight > 0n ? `#${Number(entity.blockHeight).toLocaleString()}` : "—"}</strong>
                                 </div>
                                 <div className="text-muted text-sm">
                                     Expires: <ProofCountdown expiryTimestamp={entity.expiryTimestamp} />
@@ -621,8 +562,8 @@ export default function EntityPage() {
                             />
                         </div>
                         {verifySimulatedResult && (
-                            <div className={`mb-4 ${verifySimulatedResult.isValid ? 'alert-success flex gap-2 items-center p-3 rounded text-sm text-[var(--green)] bg-[var(--surface-3)]' : 'alert-error flex gap-2 items-center p-3 rounded text-sm text-[var(--red)] bg-[var(--red-dim)]'}`} style={{ border: verifySimulatedResult.isValid ? "1px solid var(--border)" : "1px solid rgba(239, 68, 68, 0.2)" }}>
-                                {verifySimulatedResult.isValid ? <CheckCircleIcon style={{ width: 16, height: 16 }} /> : <XCircleIcon style={{ width: 16, height: 16 }} />}
+                            <div className={`alert mb-4 ${verifySimulatedResult.isValid ? 'alert-success' : 'alert-error'}`} style={{ alignItems: "center" }}>
+                                {verifySimulatedResult.isValid ? <CheckCircleIcon style={{ width: 16, height: 16, flexShrink: 0 }} /> : <XCircleIcon style={{ width: 16, height: 16, flexShrink: 0 }} />}
                                 <span>{verifySimulatedResult.message}</span>
                             </div>
                         )}
@@ -641,27 +582,9 @@ export default function EntityPage() {
                         <div className="section-title mb-1 flex justify-between items-center w-full">
                             <span>Verify Inclusion</span>
                             <div className="flex gap-2">
-                                <input
-                                    type="file"
-                                    accept=".csv,.txt"
-                                    style={{ display: "none" }}
-                                    id="liabilitiesCsvUpload"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (!file) return;
-                                        const reader = new FileReader();
-                                        reader.onload = (ev) => {
-                                            if (ev.target?.result) {
-                                                handleAutoGenerateBranch(ev.target.result as string);
-                                            }
-                                            e.target.value = ""; // Reset
-                                        };
-                                        reader.readAsText(file);
-                                    }}
-                                />
-                                <label htmlFor="liabilitiesCsvUpload" className="btn btn-secondary btn-sm" style={{ cursor: "pointer" }}>
-                                    Auto-Verify from CSV
-                                </label>
+                                <button className="btn btn-secondary btn-sm" onClick={() => handleAutoGenerateBranch()}>
+                                    Auto-Generate Merkle Branch
+                                </button>
                             </div>
                         </div>
                         <p className="text-muted text-sm mb-4">

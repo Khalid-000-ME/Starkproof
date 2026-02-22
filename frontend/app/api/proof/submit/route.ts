@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
             entity_id,
             reserve_ratio_band,
             message:
-                "Proof accepted. Entity is now publicly verified on zkReserves.",
+                "Proof accepted. Entity is now publicly verified on Starkproof.",
         });
     } catch (err: any) {
         return NextResponse.json(

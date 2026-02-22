@@ -1,11 +1,13 @@
-# zkReserves
+![Banner](frontend/public/banner.png)
+
+# Starkproof
 
 > Private Proof of Solvency on Starknet
 > Hackathon: Re{define} -- Privacy & Bitcoin on Starknet
 > Tracks: Privacy + Bitcoin
-> Stack: Cairo 2.15 · Next.js 16 · Xverse API · StarknetJS · Braavos Wallet
+> Stack: Cairo 2.12.2 · Next.js 16 · Xverse API · StarknetJS · Braavos Wallet
 
-zkReserves is a trustless, cross-chain, privacy-preserving Proof of Reserves protocol
+Starkproof is a trustless, cross-chain, privacy-preserving Proof of Reserves protocol
 built on Starknet. Any digital asset-holding entity — exchanges, funds, custodians
 — can cryptographically prove their reserves (Bitcoin, Ethereum, USDC) exceed customer
 liabilities, without revealing wallet addresses, exact balances, or any
@@ -14,12 +16,35 @@ customer-identifying information.
 The latest enhancements integrate native multi-chain support (Bitcoin via Xverse, EVM chains via public RPCs),
 and Native STARK verification utilizing Starkware's powerful Stwo prover as an independent verification layer.
 
+### Relayer Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Exchange as Exchange Company
+    participant Scarb as Scarb Prover (Relayer)
+    participant Starknet as Starknet (On-Chain)
+    participant User as Auditor / User
+    
+    Exchange->>Scarb: Submit Wallet Balances & Liability Data
+    Note over Scarb: Generate Liability Merkle Tree Hash
+    Note over Scarb: Run Cairo circuit to Generate STARK Proof
+    Scarb->>Starknet: Submit STARK Proof & Root Hash to Registry
+    Note over Scarb,Starknet: Relayer pays gas fees for transaction
+    Starknet-->>Exchange: Transaction Confirmed (Proof Published)
+    
+    User->>Starknet: Fetch STARK Proof & Root Hash
+    User->>User: Run STARK Verification locally
+    User->>Exchange: Request personal Merkle Branch
+    User->>User: Verify Merkle Branch Inclusion
+```
+
 ---
 
 ## System Overview
 
 ```
-                           zkReserves
+                           Starkproof
   ═══════════════════════════════════════════════════════════════════
 
    EXCHANGE OPERATOR                       PUBLIC / ANYONE
@@ -57,7 +82,7 @@ and Native STARK verification utilizing Starkware's powerful Stwo prover as an i
 ## Application Structure (New Design)
 
 ```
-  zkReserves Application -- Page Map
+  Starkproof Application -- Page Map
   ════════════════════════════════════════════════════════
 
   /                        Landing page
@@ -98,7 +123,7 @@ and Native STARK verification utilizing Starkware's powerful Stwo prover as an i
   └── /verify              Auditor verification tool
                            Paste proof commitment + public inputs
                            Independent cryptographic verification
-                           No trust in zkReserves frontend required
+                           No trust in Starkproof frontend required
 
   ════════════════════════════════════════════════════════
 ```
@@ -326,7 +351,7 @@ and Native STARK verification utilizing Starkware's powerful Stwo prover as an i
 ## Project Structure
 
 ```
-  zkReserves/
+  Starkproof/
   ├── contracts/
   │   ├── src/
   │   │   ├── reserves_registry.cairo    Registry contract
@@ -422,20 +447,20 @@ cd ../circuit && scarb build
 
 ```bash
 cd contracts
-sncast account create --network=sepolia --name=zkreserves
+sncast account create --network=sepolia --name=starkproof
 # Fund account at https://starknet-faucet.vercel.app/
-sncast account deploy --network sepolia --name zkreserves --silent
+sncast account deploy --network sepolia --name starkproof --silent
 
 # Deploy ReservesRegistry
-sncast --account=zkreserves declare --contract-name=ReservesRegistry --network=sepolia
-sncast --account=zkreserves deploy \
+sncast --account=starkproof declare --contract-name=ReservesRegistry --network=sepolia
+sncast --account=starkproof deploy \
   --class-hash=<CLASS_HASH> \
   --constructor-calldata=<YOUR_ACCOUNT_ADDRESS> \
   --network=sepolia
 
 # Deploy ProofScheduler
-sncast --account=zkreserves declare --contract-name=ProofScheduler --network=sepolia
-sncast --account=zkreserves deploy \
+sncast --account=starkproof declare --contract-name=ProofScheduler --network=sepolia
+sncast --account=starkproof deploy \
   --class-hash=<CLASS_HASH> \
   --constructor-calldata=<REGISTRY_ADDRESS> \
   --network=sepolia
@@ -458,7 +483,7 @@ Open http://localhost:3000
 | ReservesRegistry  | 0x05128d4d6dc00fa4faa7bdf53398d377c0f4b81519c0df15ec1f7ff53fc6f152 |
 | ProofScheduler    | 0x0055a7610b71fd44dadb8d2042305341191a86a585cd52d355906d4d598ec9cb |
 
-Starkscan: https://sepolia.voyager.online/contract/0x05128d4d6dc00fa4faa7bdf53398d377c0f4b81519c0df15ec1f7ff53fc6f152
+Voyager: https://sepolia.voyager.online/contract/0x05128d4d6dc00fa4faa7bdf53398d377c0f4b81519c0df15ec1f7ff53fc6f152
 
 ---
 
@@ -474,7 +499,7 @@ What the protocol guarantees:
   customer data cannot be silently altered without invalidating the root.
 - Time-bounded: Proofs expire after 28 days. Silence is a public red flag.
 - On-chain transparency: Proof status, band, and Merkle root are readable
-  by anyone querying the Starknet contract. No trust in zkReserves UI needed.
+  by anyone querying the Starknet contract. No trust in Starkproof UI needed.
 
 What the protocol does NOT guarantee:
 

@@ -7,7 +7,7 @@ export default function DocsPage() {
                 <div style={{ marginBottom: 32 }}>
                     <div className="badge badge-orange mb-3">Privacy + Bitcoin · Starknet</div>
                     <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.2, marginBottom: 12 }}>
-                        How zkReserves Works
+                        How Starkproof Works
                     </h1>
                     <p style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.8 }}>
                         A trustless, privacy-preserving Proof of Reserves protocol on Starknet.
@@ -39,7 +39,7 @@ export default function DocsPage() {
                     <div style={{ fontSize: 11, fontWeight: 700, color: "var(--green)", letterSpacing: "0.08em", marginBottom: 12 }}>THE SOLUTION</div>
                     <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>Zero-Knowledge Proof of Reserves</h2>
                     <p style={{ fontSize: 13, lineHeight: 1.8, color: "var(--text-muted)" }}>
-                        zkReserves uses STARK proofs to let any entity prove:
+                        Starkproof uses STARK proofs to let any entity prove:
                     </p>
                     <div className="code-block mt-3 mb-3">
                         {`∃ (wallet_addresses, balances, liabilities) such that:

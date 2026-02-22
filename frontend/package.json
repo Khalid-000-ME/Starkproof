@@ -23,6 +23,7 @@
     "react-is": "^19.2.4",
     "recharts": "^3.7.0",
     "starknet": "^9.2.1",
+    "starknetkit": "^3.4.3",
     "ts-node": "^10.9.2"
   },
   "devDependencies": {

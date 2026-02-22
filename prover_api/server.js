@@ -93,7 +93,7 @@ function parseLiabilitiesCSV(csv) {
 }
 
 function findLatestExecutionId() {
-    const baseDir = path.join(CIRCUIT_DIR, 'target', 'execute', 'zkreserves_circuit');
+    const baseDir = path.join(CIRCUIT_DIR, 'target', 'execute', 'starkproof_circuit');
     if (!fs.existsSync(baseDir)) return null;
     const ids = fs.readdirSync(baseDir)
         .filter(d => d.startsWith('execution'))
@@ -104,7 +104,7 @@ function findLatestExecutionId() {
 
 function findProofFile(execId) {
     const p = path.join(
-        CIRCUIT_DIR, 'target', 'execute', 'zkreserves_circuit',
+        CIRCUIT_DIR, 'target', 'execute', 'starkproof_circuit',
         `execution${execId}`, 'proof', 'proof.json'
     );
     return fs.existsSync(p) ? p : null;
@@ -135,7 +135,7 @@ app.post('/api/prove', async (req, res) => {
         console.log('🏃 scarb execute...');
         await run(SCARB_BIN, [
             'execute',
-            '--executable-name', 'zkreserves',
+            '--executable-name', 'starkproof',
             '--arguments', `${reservesSats},${liabilitiesSats}`,
             '--output', 'standard'
         ]);
@@ -218,7 +218,7 @@ app.get('/health', (_, res) => res.json({
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-    console.log(`\n🚀 zkReserves Prover API — port ${PORT}`);
+    console.log(`\n🚀 Starkproof Prover API — port ${PORT}`);
     console.log(`   Scarb: ${SCARB_BIN}`);
     console.log('   Pipeline: scarb execute → scarb prove → scarb verify\n');
 });

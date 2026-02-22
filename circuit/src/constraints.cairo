@@ -1,4 +1,4 @@
-/// Solvency constraints for the zkReserves circuit.
+/// Solvency constraints for the Starkproof circuit.
 ///
 /// These are the core assertions that the circuit enforces.
 /// If any assertion fails, no valid proof can be generated.

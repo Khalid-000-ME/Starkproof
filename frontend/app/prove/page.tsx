@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useAccount, useConnect, useDisconnect, useSendTransaction } from "@starknet-react/core";
+import { useStarknetkitConnectModal } from "starknetkit";
 import { computeEntityId, computeLiabilityRoot } from "@/lib/merkle";
 import { satoshiToBTC, getMultipleBalances, getCurrentBlockHeight } from "@/lib/xverse";
 import { generateProof, type ProofGenerationProgress } from "@/lib/circuit";
@@ -24,6 +25,7 @@ const getTokenIcon = (symbol: string) => {
         case "BTC": return <TokenBTC size={22} />;
         case "ETH": return <TokenETH size={22} />;
         case "USDC": return <TokenUSDC size={22} />;
+        case "STRK": return <img src="/download.svg" style={{ width: 22, height: 22 }} alt="STRK" />;
         case "SOL": return <TokenSOL size={22} />;
         default: return <CurrencyDollarIcon style={{ width: 22, height: 22, color: "var(--accent)" }} />;
     }
@@ -67,6 +69,9 @@ export default function ProvePage() {
     const fileRef = useRef<HTMLInputElement>(null);
 
     const uniqueConnectors = connectors.filter((c, idx, arr) => arr.findIndex(x => x.id === c.id) === idx);
+    const { starknetkitConnectModal } = useStarknetkitConnectModal({
+        connectors: uniqueConnectors as any[]
+    });
 
     useEffect(() => {
         if (!walletAddress) {
@@ -175,6 +180,40 @@ export default function ProvePage() {
                         const bal = await contract.balanceOf(entry.address);
                         const num = Number(ethers.utils.formatUnits(bal, 6));
                         realBalances.push({ address: entry.address, balance: Math.floor(num * 100000000), satoshi: Math.floor(num * 100000000) });
+                    }
+                }
+
+                setBlockHeight(maxBlockHeight);
+                setBalances(realBalances);
+            } else if (assetType === "STRK") {
+                const { RpcProvider } = await import("starknet");
+                const STRK_ADDRESS = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
+                const provider = new RpcProvider({ nodeUrl: "https://api.cartridge.gg/x/starknet/sepolia" });
+
+                let realBalances = [];
+                const maxBlockHeight = await provider.getBlockNumber();
+
+                for (const entry of entries) {
+                    try {
+                        let address = entry.address.trim().toLowerCase();
+                        if (!address.startsWith("0x")) address = "0x" + address;
+
+                        const res = await provider.callContract({
+                            contractAddress: STRK_ADDRESS,
+                            entrypoint: "balanceOf",
+                            calldata: [address]
+                        });
+
+                        // uint256 is [low, high]. STRK has 18 decimals
+                        const numStrk = Number(BigInt(res[0])) / 1e18;
+                        realBalances.push({
+                            address: entry.address,
+                            balance: Math.floor(numStrk * 100000000),
+                            satoshi: Math.floor(numStrk * 100000000)
+                        });
+                    } catch (err) {
+                        console.error("STRK fetch error for", entry.address, err);
+                        realBalances.push({ address: entry.address, balance: 0, satoshi: 0 });
                     }
                 }
 
@@ -298,12 +337,17 @@ export default function ProvePage() {
                             Your wallet identifies your registered entity.
                         </p>
                         <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-                            {uniqueConnectors.map((c) => (
-                                <button key={c.id} className="btn btn-primary" onClick={() => connect({ connector: c })} disabled={isConnecting}>
-                                    <WalletIcon style={{ width: 16, height: 16 }} />
-                                    {isConnecting ? "Connecting..." : `Connect with ${c.name}`}
-                                </button>
-                            ))}
+                            <button
+                                className="btn btn-primary"
+                                onClick={async () => {
+                                    const { connector } = await starknetkitConnectModal();
+                                    if (connector) await connect({ connector });
+                                }}
+                                disabled={isConnecting}
+                            >
+                                <WalletIcon style={{ width: 16, height: 16 }} />
+                                {isConnecting ? "Connecting..." : "Connect Wallet"}
+                            </button>
                         </div>
                     </div>
                 ) : loadingEntity ? (
@@ -342,12 +386,12 @@ export default function ProvePage() {
                                 const active = step === s.num;
                                 const Icon = s.icon;
                                 return (
-                                    <div key={s.num} className="wizard-step" style={{ alignItems: "center" }}>
-                                        <div className={`wizard-step-num ${active ? "active" : done ? "done" : ""}`} title={s.label}>
+                                    <div key={s.num} className={`wizard-step ${active ? "active" : done ? "done" : ""}`} style={{ alignItems: "center" }}>
+                                        <div className="wizard-step-num" title={s.label}>
                                             {done ? <CheckCircleIcon style={{ width: 14, height: 14 }} /> : <Icon style={{ width: 14, height: 14 }} />}
                                         </div>
-                                        <div className={`wizard-step-label ${active ? "active" : ""}`}>{s.label}</div>
-                                        {idx < STEP_META.length - 1 && <div className="wizard-connector" />}
+                                        <div className="wizard-step-label">{s.label}</div>
+                                        {idx < STEP_META.length - 1 && <div className={`wizard-connector ${done ? "done" : ""}`} />}
                                     </div>
                                 );
                             })}
@@ -376,9 +420,10 @@ export default function ProvePage() {
                                         <div style={{ minWidth: "22px" }}>{getTokenIcon(assetType)}</div>
                                         <select className="input input-mono w-full mb-2" value={assetType} onChange={e => setAssetType(e.target.value)} style={{ appearance: "auto", paddingRight: 32 }}>
                                             <option value="BTC">Bitcoin (BTC) - via Xverse API</option>
-                                            <option value="ETH">Ethereum (ETH) - via Public RPC</option>
-                                            <option value="USDC">USD Coin (USDC) - via Smart Contract</option>
-                                            <option value="SOL">Solana (SOL) - Mocked for Demo</option>
+                                            <option value="STRK">Starknet (STRK) - Live Fetching</option>
+                                            <option value="ETH">Ethereum (ETH) - Live Fetching</option>
+                                            <option value="USDC">USD Coin (USDC) - Live Fetching</option>
+                                            <option value="SOL">Solana (SOL) - Mocked</option>
                                         </select>
                                     </div>
                                 </div>
@@ -421,7 +466,7 @@ export default function ProvePage() {
                                         <div key={idx} className="flex gap-2 mb-2">
                                             <input
                                                 className="input input-mono w-full"
-                                                placeholder={(assetType === "ETH" || assetType === "USDC") ? "0x123..." : "bc1qxxx..."}
+                                                placeholder={(assetType === "ETH" || assetType === "USDC" || assetType === "STRK") ? "0x123..." : "bc1qxxx..."}
                                                 value={entry.address}
                                                 onChange={(e) => {
                                                     const newEntries = [...addressEntries];
@@ -452,6 +497,10 @@ export default function ProvePage() {
                                                             <option value="signet">Signet</option>
                                                             <option value="testnet">Testnet</option>
                                                             <option value="testnet4">Testnet4</option>
+                                                        </>
+                                                    ) : assetType === "STRK" ? (
+                                                        <>
+                                                            <option value="starknet_sepolia">Starknet Sepolia</option>
                                                         </>
                                                     ) : null}
                                                 </select>

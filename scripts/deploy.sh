@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# zkReserves — Automated deployment script for Starknet Sepolia
+# Starkproof — Automated deployment script for Starknet Sepolia
 # Run this AFTER funding the account at https://starknet-faucet.vercel.app/
 
 set -euo pipefail
 
 export PATH="$HOME/.asdf/shims:$HOME/.asdf/bin:$PATH"
 
-ACCOUNT_NAME="zkreserves"
+ACCOUNT_NAME="starkproof"
 ACCOUNT_ADDRESS="0x05deb262099b4a36556b7d57b005768785014ded07ace25e793d9f1a664dd3ad"
 NETWORK="sepolia"
 CONTRACTS_DIR="$(cd "$(dirname "$0")/../contracts" && pwd)"
@@ -14,7 +14,7 @@ FRONTEND_ENV="$(cd "$(dirname "$0")/../frontend" && pwd)/.env.local"
 
 echo ""
 echo "╔══════════════════════════════════════════════════╗"
-echo "║        zkReserves — Starknet Deployment          ║"
+echo "║        Starkproof — Starknet Deployment          ║"
 echo "╚══════════════════════════════════════════════════╝"
 echo ""
 echo "Account : $ACCOUNT_ADDRESS"

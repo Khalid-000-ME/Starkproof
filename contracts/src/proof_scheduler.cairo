@@ -1,4 +1,4 @@
-/// zkReserves — ProofScheduler Contract
+/// Starkproof — ProofScheduler Contract
 ///
 /// Tracks all registered entities from the ReservesRegistry and provides:
 /// - Ecosystem-wide health metrics (valid/expired/never-proven counts)

@@ -114,7 +114,7 @@ export default function LandingPage() {
                     {/* Title Block */}
                     <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center" }}>
                         <div style={{ marginBottom: 24, display: "flex", justifyContent: "center" }}>
-                            <img src="/logo.png" alt="zkReserves" style={{ width: 80, height: 80, borderRadius: 16, boxShadow: "0 8px 24px rgba(16, 185, 129, 0.2)" }} />
+                            <img src="/logo.png" alt="Starkproof" style={{ width: 80, height: 80, borderRadius: 16, boxShadow: "0 8px 24px rgba(16, 185, 129, 0.2)" }} />
                         </div>
                         <h1 style={{
                             fontFamily: "'Playfair Display', serif",
@@ -137,7 +137,7 @@ export default function LandingPage() {
                             margin: "0 auto 40px",
                             fontFamily: "var(--font)"
                         }}>
-                            zkReserves lets any Bitcoin (or other digital asset) custodian cryptographically prove their reserves exceed liabilities — without exposing wallet addresses, exact balances, or customer data.
+                            Starkproof lets any Bitcoin (or other digital asset) custodian cryptographically prove their reserves exceed liabilities — without exposing wallet addresses, exact balances, or customer data.
                         </p>
 
                         <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", marginBottom: 72 }}>
@@ -281,7 +281,7 @@ export default function LandingPage() {
                             <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12, fontWeight: 600 }}>Security Model</div>
                             <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 16 }}>What the protocol guarantees</h2>
                             <p style={{ fontSize: 14, color: "var(--text-muted)", lineHeight: 1.7 }}>
-                                The zero-knowledge circuit makes mathematical guarantees that no amount of trust or auditing can match. These properties hold regardless of whether you trust this frontend, the zkReserves team, or the exchange itself.
+                                The zero-knowledge circuit makes mathematical guarantees that no amount of trust or auditing can match. These properties hold regardless of whether you trust this frontend, the Starkproof team, or the exchange itself.
                             </p>
                             <div style={{ marginTop: 28 }}>
                                 <Link href="/verify" className="btn btn-secondary btn-sm">
@@ -360,7 +360,7 @@ export default function LandingPage() {
             <footer style={{ borderTop: "1px solid var(--border-subtle)", padding: "24px 0" }}>
                 <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                     <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                        zkReserves · Re{"{"}define{"}"} Hackathon · Privacy & Bitcoin (Multi-Token) on Starknet
+                        Starkproof · Re{"{"}define{"}"} Hackathon · Privacy & Bitcoin (Multi-Token) on Starknet
                     </div>
                     <div style={{ display: "flex", gap: 16 }}>
                         {[

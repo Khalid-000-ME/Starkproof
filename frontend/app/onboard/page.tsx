@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import { useAccount, useConnect, useDisconnect, useSendTransaction } from "@starknet-react/core";
+import { useStarknetkitConnectModal } from "starknetkit";
 import { computeEntityId, stringToFelt252, computeLiabilityRoot } from "@/lib/merkle";
 import { satoshiToBTC, getMultipleBalances, getCurrentBlockHeight } from "@/lib/xverse";
 import { generateProof, type ProofGenerationProgress } from "@/lib/circuit";
@@ -70,6 +71,9 @@ export default function OnboardPage() {
     const { sendAsync: sendTransaction } = useSendTransaction({ calls: [] });
 
     const uniqueConnectors = connectors.filter((c, idx, arr) => arr.findIndex(x => x.id === c.id) === idx);
+    const { starknetkitConnectModal } = useStarknetkitConnectModal({
+        connectors: uniqueConnectors as any[]
+    });
 
     // ── Step 1: Connect wallet ────────────────────────────────────────────────
     function handleWalletConnected() {
@@ -320,12 +324,12 @@ export default function OnboardPage() {
                         const active = step === s.num;
                         const Icon = s.icon;
                         return (
-                            <div key={s.num} className="wizard-step" style={{ alignItems: "center" }}>
-                                <div className={`wizard-step-num ${active ? "active" : done ? "done" : ""}`} title={s.label}>
+                            <div key={s.num} className={`wizard-step ${active ? "active" : done ? "done" : ""}`} style={{ alignItems: "center" }}>
+                                <div className="wizard-step-num" title={s.label}>
                                     {done ? <CheckCircleIcon style={{ width: 14, height: 14 }} /> : <Icon style={{ width: 14, height: 14 }} />}
                                 </div>
-                                <div className={`wizard-step-label ${active ? "active" : ""}`}>{s.label}</div>
-                                {idx < STEP_META.length - 1 && <div className="wizard-connector" />}
+                                <div className="wizard-step-label">{s.label}</div>
+                                {idx < STEP_META.length - 1 && <div className={`wizard-connector ${done ? "done" : ""}`} />}
                             </div>
                         );
                     })}
@@ -365,18 +369,18 @@ export default function OnboardPage() {
                             </div>
                         ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                                {uniqueConnectors.map((c) => (
-                                    <button
-                                        key={c.id}
-                                        className="btn btn-secondary"
-                                        onClick={() => connect({ connector: c })}
-                                        disabled={isConnecting}
-                                        style={{ justifyContent: "flex-start" }}
-                                    >
-                                        <WalletIcon style={{ width: 16, height: 16 }} />
-                                        {isConnecting ? "Connecting..." : `Connect with ${c.name}`}
-                                    </button>
-                                ))}
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={async () => {
+                                        const { connector } = await starknetkitConnectModal();
+                                        if (connector) await connect({ connector });
+                                    }}
+                                    disabled={isConnecting}
+                                    style={{ justifyContent: "center" }}
+                                >
+                                    <WalletIcon style={{ width: 16, height: 16 }} />
+                                    {isConnecting ? "Connecting..." : "Connect Wallet"}
+                                </button>
                                 <p className="text-muted" style={{ fontSize: 11, marginTop: 8 }}>
                                     Need a wallet? Install <a href="https://braavos.app" target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>Braavos</a> and switch to Sepolia testnet.
                                 </p>
@@ -435,9 +439,9 @@ export default function OnboardPage() {
                                 <div style={{ minWidth: "22px" }}>{getTokenIcon(assetType)}</div>
                                 <select className="input input-mono w-full" value={assetType} onChange={e => setAssetType(e.target.value)} style={{ appearance: "auto", paddingRight: 32 }}>
                                     <option value="BTC">Bitcoin (BTC) - via Xverse API</option>
+                                    <option value="STRK">Starknet (STRK) - Live Fetching</option>
                                     <option value="ETH">Ethereum (ETH) - Live Fetching</option>
                                     <option value="USDC">USD Coin (USDC) - Live Fetching</option>
-                                    <option value="STRK">Starknet (STRK) - Live Fetching</option>
                                     <option value="SOL">Solana (SOL) - Mocked</option>
                                 </select>
                             </div>

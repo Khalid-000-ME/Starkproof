@@ -1,6 +1,6 @@
 use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
 use starknet::{ContractAddress, get_block_timestamp};
-use zkreserves_contracts::reserves_registry::{
+use starkproof_contracts::reserves_registry::{
     IReservesRegistryDispatcher, IReservesRegistryDispatcherTrait, PublicInputs, ProofStatus,
 };
 

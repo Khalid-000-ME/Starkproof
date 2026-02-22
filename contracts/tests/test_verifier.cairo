@@ -1,6 +1,6 @@
-use zkreserves_circuit::merkle::{leaf_hash, compute_merkle_root, build_liability_root};
-use zkreserves_circuit::constraints::{sum_u64_array, assert_solvent, assert_valid_inputs};
-use zkreserves_circuit::band::{compute_band, band_label};
+use starkproof_circuit::merkle::{leaf_hash, compute_merkle_root, build_liability_root};
+use starkproof_circuit::constraints::{sum_u64_array, assert_solvent, assert_valid_inputs};
+use starkproof_circuit::band::{compute_band, band_label};
 
 // ─── Merkle Tests ─────────────────────────────────────────────────────────────
 

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAccount, useDisconnect, useConnect } from "@starknet-react/core";
+import { useStarknetkitConnectModal } from "starknetkit";
 import {
     ChartBarIcon,
     ShieldCheckIcon,
@@ -20,6 +21,10 @@ export default function Navbar() {
     const { address, isConnected } = useAccount();
     const { disconnect } = useDisconnect();
     const { connect, connectors } = useConnect();
+    const uniqueConnectors = connectors.filter((c, idx, arr) => arr.findIndex(x => x.id === c.id) === idx);
+    const { starknetkitConnectModal } = useStarknetkitConnectModal({
+        connectors: uniqueConnectors as any[]
+    });
 
     const isLanding = pathname === "/";
 
@@ -27,9 +32,9 @@ export default function Navbar() {
         <nav className="navbar">
             <div className="navbar-inner">
                 {/* Logo */}
-                <Link href="/" className="navbar-logo">
-                    <img src="/logo.png" alt="zkReserves Logo" style={{ width: 20, height: 20, borderRadius: 4 }} />
-                    zk<span>Reserves</span>
+                <Link href="/" className="navbar-logo" style={{ fontFamily: "'Space Mono', monospace", letterSpacing: "0px" }}>
+                    <img src="/logo.png" alt="Starkproof Logo" style={{ width: 20, height: 20, borderRadius: 4 }} />
+                    Starkproof
                 </Link>
 
                 {/* Center links */}
@@ -77,10 +82,10 @@ export default function Navbar() {
                         </div>
                     ) : (
                         <button
-                            onClick={() => {
-                                if (connectors && connectors.length > 0) {
-                                    // Use the first available connector (usually ArgentX or Braavos)
-                                    connect({ connector: connectors[0] });
+                            onClick={async () => {
+                                const { connector } = await starknetkitConnectModal();
+                                if (connector) {
+                                    connect({ connector });
                                 }
                             }}
                             className="btn btn-primary btn-sm"

@@ -1,4 +1,4 @@
-/// zkReserves — Executable entry point for the Stwo prover pipeline.
+/// Starkproof — Executable entry point for the Stwo prover pipeline.
 ///
 /// Arguments (comma-separated integers via scarb execute --arguments):
 ///   reserves_sats    : u64   — total reserves in satoshis 
@@ -8,8 +8,8 @@
 /// The circuit asserts solvency — proof generation fails (panics) if reserves < liabilities.
 /// The band is encoded as a return value and visible in the execution trace.
 
-use zkreserves_circuit::constraints::assert_solvent;
-use zkreserves_circuit::band::compute_band;
+use starkproof_circuit::constraints::assert_solvent;
+use starkproof_circuit::band::compute_band;
 
 #[executable]
 fn main(reserves_sats: u64, liabilities_sats: u64) {

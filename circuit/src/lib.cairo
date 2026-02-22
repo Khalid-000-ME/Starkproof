@@ -1,4 +1,4 @@
-/// zkReserves Circuit — Main Cairo Program
+/// Starkproof Circuit — Main Cairo Program
 ///
 /// This is the Cairo program that proves solvency without revealing private data.
 /// It runs off-chain (on the prover's machine) and outputs public commitments

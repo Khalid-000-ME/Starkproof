@@ -8,7 +8,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         const idParam = id.toLowerCase();
         // since proof_logs.json is removed for privacy, just pull the latest stark proof from local fs
         // normally an entity would expose this via their own static site
-        const executionsDir = path.join(process.cwd(), "..", "circuit", "target", "execute", "zkreserves_circuit");
+        const executionsDir = path.join(process.cwd(), "..", "circuit", "target", "execute", "starkproof_circuit");
         if (!fs.existsSync(executionsDir)) {
             return NextResponse.json({ error: "No proofs generated yet." }, { status: 404 });
         }

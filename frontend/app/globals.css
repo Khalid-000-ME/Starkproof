@@ -571,18 +571,23 @@ tr.clickable:hover td {
   border: 1px solid var(--border);
   color: var(--text-muted);
   background: var(--surface);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 0 transparent;
 }
 
 .wizard-step.active .wizard-step-num {
-  background: var(--accent);
-  color: #fff;
+  background: var(--surface-2);
+  color: var(--accent);
   border-color: var(--accent);
+  transform: scale(1.15);
+  box-shadow: 0 0 16px var(--accent-dim), inset 0 0 8px var(--accent-dim);
 }
 
 .wizard-step.done .wizard-step-num {
-  background: var(--green-dim);
+  background: transparent;
   color: var(--green);
-  border-color: var(--green);
+  border-color: var(--green-dim);
+  box-shadow: 0 0 10px var(--green-dim);
 }
 
 .wizard-step-label {
@@ -593,6 +598,11 @@ tr.clickable:hover td {
 
 .wizard-step.active .wizard-step-label {
   color: var(--text);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+}
+
+.wizard-step.done .wizard-step-label {
+  color: var(--green);
 }
 
 .wizard-connector {
@@ -600,6 +610,11 @@ tr.clickable:hover td {
   height: 1px;
   background: var(--border);
   margin: 0 8px;
+}
+
+.wizard-connector.done {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green-dim);
 }
 
 /* ─── Health Banner ──────────────────────────────────────────────────────────── */

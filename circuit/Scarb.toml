@@ -1,11 +1,11 @@
 [package]
-name = "zkreserves_circuit"
+name = "starkproof_circuit"
 version = "0.1.0"
 edition = "2024_07"
 
 [[target.executable]]
-name = "zkreserves"
-function = "zkreserves_circuit::main::main"
+name = "starkproof"
+function = "starkproof_circuit::main::main"
 
 [lib]
 

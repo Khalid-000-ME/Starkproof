@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# zkReserves — True ZK Proving Pipeline using Scarb + Stwo
+# Starkproof — True ZK Proving Pipeline using Scarb + Stwo
 # ==============================================================================
 # Called by prover_api/server.js with:
 #   ARGUMENTS  env var  — serialised felt252 array for the circuit
@@ -21,7 +21,7 @@ echo ">> [2/4] Executing circuit (scarb-execute) to produce execution trace..."
 # scarb-execute runs the #[executable] function and writes
 # an execution trace to target/execute/<pkg>/<id>/
 EXEC_OUTPUT=$(scarb execute \
-  --executable-name zkreserves \
+  --executable-name starkproof \
   --arguments "$ARGUMENTS" \
   --output standard \
   --json 2>&1)
@@ -32,7 +32,7 @@ echo "$EXEC_OUTPUT"
 EXECUTION_ID=$(echo "$EXEC_OUTPUT" | grep -o '"execution_id":"[^"]*"' | head -1 | cut -d'"' -f4)
 if [ -z "$EXECUTION_ID" ]; then
   # Fallback: find the latest execution directory
-  EXEC_DIR=$(ls -td target/execute/zkreserves_circuit/*/ 2>/dev/null | head -1)
+  EXEC_DIR=$(ls -td target/execute/starkproof_circuit/*/ 2>/dev/null | head -1)
   EXECUTION_ID=$(basename "$EXEC_DIR")
 fi
 
@@ -40,7 +40,7 @@ echo "   Execution ID: $EXECUTION_ID"
 
 echo ">> [3/4] Generating Stwo STARK proof (scarb-prove)..."
 scarb prove \
-  --executable-name zkreserves \
+  --executable-name starkproof \
   --execution-id "$EXECUTION_ID"
 
 # The proof lands in target/proofs/<execution-id>/proof.json  

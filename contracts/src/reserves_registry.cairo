@@ -1,4 +1,4 @@
-/// zkReserves — ReservesRegistry Contract
+/// Starkproof — ReservesRegistry Contract
 ///
 /// This is the main public-facing contract. It:
 /// 1. Allows entities to register themselves (permissionlessly)

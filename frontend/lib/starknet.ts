@@ -33,7 +33,7 @@ export const REGISTRY_ABI: Abi = [
           { name: "entity_id", type: "core::felt252" },
           {
             name: "public_inputs",
-            type: "zkreserves_contracts::reserves_registry::PublicInputs",
+            type: "starkproof_contracts::reserves_registry::PublicInputs",
           },
           { name: "proof_commitment", type: "core::felt252" },
         ],
@@ -46,7 +46,7 @@ export const REGISTRY_ABI: Abi = [
         inputs: [{ name: "entity_id", type: "core::felt252" }],
         outputs: [
           {
-            type: "zkreserves_contracts::reserves_registry::ProofStatus",
+            type: "starkproof_contracts::reserves_registry::ProofStatus",
           },
         ],
         state_mutability: "view",
@@ -57,7 +57,7 @@ export const REGISTRY_ABI: Abi = [
         inputs: [{ name: "entity_id", type: "core::felt252" }],
         outputs: [
           {
-            type: "zkreserves_contracts::reserves_registry::ProofRecord",
+            type: "starkproof_contracts::reserves_registry::ProofRecord",
           },
         ],
         state_mutability: "view",
@@ -71,7 +71,7 @@ export const REGISTRY_ABI: Abi = [
         ],
         outputs: [
           {
-            type: "zkreserves_contracts::reserves_registry::ProofRecord",
+            type: "starkproof_contracts::reserves_registry::ProofRecord",
           },
         ],
         state_mutability: "view",
@@ -82,7 +82,7 @@ export const REGISTRY_ABI: Abi = [
         inputs: [{ name: "entity_id", type: "core::felt252" }],
         outputs: [
           {
-            type: "zkreserves_contracts::reserves_registry::EntityRecord",
+            type: "starkproof_contracts::reserves_registry::EntityRecord",
           },
         ],
         state_mutability: "view",
@@ -146,7 +146,7 @@ export const SCHEDULER_ABI: Abi = [
         inputs: [],
         outputs: [
           {
-            type: "zkreserves_contracts::proof_scheduler::EcosystemHealth",
+            type: "starkproof_contracts::proof_scheduler::EcosystemHealth",
           },
         ],
         state_mutability: "view",

@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import { StarknetProvider } from "@/components/StarknetProvider";
 
 export const metadata: Metadata = {
-    title: "zkReserves — Private Proof of Solvency on Starknet",
+    title: "Starkproof — Private Proof of Solvency on Starknet",
     description:
         "Trustless, privacy-preserving Proof of Reserves for Bitcoin custodians. Prove solvency without revealing wallet addresses or balances.",
 };
@@ -19,7 +19,7 @@ export default function RootLayout({
             <head>
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-                <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+                <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Space+Mono:wght@400;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
             </head>
             <body style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                 <StarknetProvider>
