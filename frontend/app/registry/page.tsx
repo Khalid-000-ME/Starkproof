@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import LiveBlockTicker from "@/components/LiveBlockTicker";
 import EcosystemHealthBanner from "@/components/EcosystemHealthBanner";
-import EntityTable from "@/components/EntityTable";
+import EntityTable, { AUTHORIZED_WALLETS } from "@/components/EntityTable";
 import type { EntityRow } from "@/components/EntityTable";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -56,6 +56,7 @@ export default function RegistryPage() {
 
     const [rawEvents, setRawEvents] = useState<any[]>([]);
     const [timeline, setTimeline] = useState("5d");
+    const [showAuthorizedOnly, setShowAuthorizedOnly] = useState(false);
 
     useEffect(() => {
         async function aggregateRealStats() {
@@ -157,7 +158,17 @@ export default function RegistryPage() {
                         else if (r_expiry - nowSec < twoDays) status = "Expiring";
                         else status = "Active";
 
-                        loaded.push({ id: feltToHash(id), name: nameStr, status, band: r_band, blockHeight: r_height, proofTimestamp: r_timestamp, expiryTimestamp: r_expiry, submissionCount: r_count });
+                        loaded.push({
+                            id: feltToHash(id),
+                            name: nameStr,
+                            status,
+                            band: r_band,
+                            blockHeight: r_height,
+                            proofTimestamp: r_timestamp,
+                            expiryTimestamp: r_expiry,
+                            submissionCount: r_count,
+                            registrant: feltToHash(rec[2])
+                        });
                     } catch (err) {
                         console.error("Error fetching entity:", err);
                     }
@@ -172,31 +183,8 @@ export default function RegistryPage() {
                 setEntities(loaded);
                 setLoading(false);
 
-                // Compute real band distribution and exact total proofs from the live entities data
-                let totalProofs = 0;
-                const dist = { 1: 0, 2: 0, 3: 0 };
-                let totalBandScore = 0;
-                let validCount = 0;
-
-                loaded.forEach(e => {
-                    totalProofs += e.submissionCount;
-                    if (e.status === "Active" || e.status === "Expiring") {
-                        dist[e.band as keyof typeof dist]++;
-                        totalBandScore += e.band;
-                        validCount++;
-                    }
-                });
-
-                setStats((prev: any) => ({
-                    ...prev,
-                    total_proofs_submitted_all_time: totalProofs,
-                    average_reserve_ratio_band: validCount > 0 ? Number(Object.entries(dist).reduce((a, b) => dist[a[0] as unknown as keyof typeof dist] > b[1] ? a : b)[0]) : null, // Get most frequent band
-                    band_distribution: [
-                        { band: 1, count: dist[1] },
-                        { band: 2, count: dist[2] },
-                        { band: 3, count: dist[3] }
-                    ]
-                }));
+                // Stats are computed during render
+                // We leave setStats for historical events which are fetched separately
 
             } catch (error) {
                 console.error("Failed to load entities:", error);
@@ -270,9 +258,38 @@ export default function RegistryPage() {
         }));
     }, [rawEvents, timeline]);
 
-    const valid = entities.filter((e) => e.status === "Active" || e.status === "Expiring").length;
-    const expired = entities.filter((e) => e.status === "Expired").length;
-    const never = entities.filter((e) => e.status === "NeverProven").length;
+    // Filter & Sort Logic
+    let displayedEntities = [...entities];
+
+    // Sort logic to push unauthorized bottom
+    displayedEntities.sort((a, b) => {
+        const aAuth = a.registrant && AUTHORIZED_WALLETS.includes(a.registrant) ? 1 : 0;
+        const bAuth = b.registrant && AUTHORIZED_WALLETS.includes(b.registrant) ? 1 : 0;
+        if (aAuth !== bAuth) return bAuth - aAuth; // Authorized first
+        return Number(b.proofTimestamp) - Number(a.proofTimestamp);
+    });
+
+    if (showAuthorizedOnly) {
+        displayedEntities = displayedEntities.filter(e => e.registrant && AUTHORIZED_WALLETS.includes(e.registrant));
+    }
+
+    const valid = displayedEntities.filter((e) => e.status === "Active" || e.status === "Expiring").length;
+    const expired = displayedEntities.filter((e) => e.status === "Expired").length;
+    const never = displayedEntities.filter((e) => e.status === "NeverProven").length;
+
+    // Derived realtime stats
+    const totalProofsComputed = displayedEntities.reduce((sum, e) => sum + e.submissionCount, 0);
+    const bandDistComputed = { 1: 0, 2: 0, 3: 0 };
+    let validBandCountComputed = 0;
+    displayedEntities.forEach(e => {
+        if (e.status === "Active" || e.status === "Expiring") {
+            bandDistComputed[e.band as keyof typeof bandDistComputed]++;
+            validBandCountComputed++;
+        }
+    });
+    const avgBandComputed = validBandCountComputed > 0
+        ? Number(Object.entries(bandDistComputed).reduce((a, b) => bandDistComputed[a[0] as unknown as keyof typeof bandDistComputed] > b[1] ? a : b)[0])
+        : null;
 
     return (
         <>
@@ -310,7 +327,7 @@ export default function RegistryPage() {
                     </div>
 
                     <EcosystemHealthBanner
-                        total={entities.length}
+                        total={displayedEntities.length}
                         valid={valid}
                         expired={expired}
                         neverProven={never}
@@ -320,34 +337,45 @@ export default function RegistryPage() {
                     <div className="stats-row mt-4">
                         <div className="stat-cell">
                             <div className="stat-label">Total Proofs</div>
-                            <div className="stat-value">{stats?.total_proofs_submitted_all_time ?? "—"}</div>
+                            <div className="stat-value">{totalProofsComputed > 0 ? totalProofsComputed : "—"}</div>
                         </div>
                         <div className="stat-cell">
                             <div className="stat-label">Avg Reserve Band</div>
                             <div className="stat-value" style={{ color: "var(--green)" }}>
-                                {stats?.average_reserve_ratio_band === 3 ? "≥ 120%" :
-                                    stats?.average_reserve_ratio_band === 2 ? "110–120%" :
-                                        stats?.average_reserve_ratio_band === 1 ? "100–110%" : "—"}
+                                {avgBandComputed === 3 ? "≥ 120%" :
+                                    avgBandComputed === 2 ? "110–120%" :
+                                        avgBandComputed === 1 ? "100–110%" : "—"}
                             </div>
                         </div>
                         <div className="stat-cell">
                             <div className="stat-label">Entities Registered</div>
-                            <div className="stat-value">{loading ? "—" : entities.length}</div>
+                            <div className="stat-value">{loading ? "—" : displayedEntities.length}</div>
                         </div>
                         <div className="stat-cell">
                             <div className="stat-label">Validity Rate</div>
                             <div className="stat-value" style={{ color: "var(--green)" }}>
-                                {entities.length > 0 ? Math.round((valid / entities.length) * 100) : 0}%
+                                {displayedEntities.length > 0 ? Math.round((valid / displayedEntities.length) * 100) : 0}%
                             </div>
                         </div>
                     </div>
 
-                    <div className="mt-6">
-                        <div className="section-header">
-                            <div className="section-title">Registered Entities</div>
-                            <div className="section-desc">Click any row to view proof history</div>
+                    <div className="mt-8">
+                        <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                                <div className="section-title">Registered Entities</div>
+                                <div className="section-desc">Click any row to view proof history</div>
+                            </div>
+                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: "var(--text)" }}>
+                                <input
+                                    type="checkbox"
+                                    checked={showAuthorizedOnly}
+                                    onChange={e => setShowAuthorizedOnly(e.target.checked)}
+                                    style={{ width: 16, height: 16, accentColor: "var(--green)", cursor: "pointer" }}
+                                />
+                                Only show Authorized proofs
+                            </label>
                         </div>
-                        <EntityTable entities={entities} loading={loading} />
+                        <EntityTable entities={displayedEntities} loading={loading} />
                     </div>
 
                     <div className="grid-2 mt-6" style={{ gap: 16 }}>
@@ -388,7 +416,11 @@ export default function RegistryPage() {
                                 <div className="section-desc">Active proofs only</div>
                             </div>
                             <div style={{ flex: 1, minHeight: 180, marginTop: 16 }}>
-                                <RatioDistribution data={stats?.band_distribution ?? [{ band: 1, count: 1 }, { band: 2, count: 2 }, { band: 3, count: 3 }]} />
+                                <RatioDistribution data={[
+                                    { band: 1, count: bandDistComputed[1] },
+                                    { band: 2, count: bandDistComputed[2] },
+                                    { band: 3, count: bandDistComputed[3] }
+                                ]} />
                             </div>
                         </div>
                     </div>

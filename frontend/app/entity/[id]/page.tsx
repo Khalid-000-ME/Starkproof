@@ -9,6 +9,9 @@ import ProofCountdown from "@/components/ProofCountdown";
 import { CheckCircleIcon, XCircleIcon, InformationCircleIcon, ArrowRightIcon } from "@heroicons/react/24/outline";
 import { hash } from "starknet";
 
+const AUTHORIZED_WALLETS = ["0x044bee7bb2e611f5d0d10026ec411bf0617ac9d58b640ff5587f2a163c117b6d"];
+
+
 // ── helpers ────────────────────────────────────────────────────────────────────
 function feltToName(hex: string): string {
     let h = BigInt(hex).toString(16);
@@ -130,6 +133,7 @@ export default function EntityPage() {
                     expiryTimestamp: r_expiry,
                     submissionCount: r_count,
                     merkleRoot: r_root,
+                    registrant: feltToHash(rec[2]),
                     log
                 });
 
@@ -298,7 +302,10 @@ export default function EntityPage() {
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         <div>
                             <div className="flex items-center gap-3 mb-2">
-                                <h1 style={{ fontSize: 22, fontWeight: 700 }}>{displayName}</h1>
+                                <h1 style={{ fontSize: 22, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                                    {displayName}
+                                    {entity.registrant && AUTHORIZED_WALLETS.includes(entity.registrant) && <CheckCircleIcon style={{ width: 18, height: 18, color: "var(--green)" }} title="Verified Authorized Tracker" />}
+                                </h1>
                                 {tokenName && (
                                     <div className="badge" style={{ background: "var(--surface-3)", color: "var(--green)" }}>
                                         {tokenName} • {networkName}
@@ -323,22 +330,45 @@ export default function EntityPage() {
                 </div>
 
                 <div className="grid-2" style={{ gap: 16 }}>
-                    {/* Public Proof Information */}
-                    <div className="card">
-                        <div className="section-title mb-3">On-Chain Proof Truth</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                            {[
-                                { label: "Entity ID", value: entity.id, mono: true },
-                                { label: "Merkle Root", value: rootDisplay, mono: true },
-                                { label: "Total Submissions", value: entity.submissionCount.toString(), mono: true },
-                                { label: "Latest Proof", value: formatTimestamp(entity.proofTimestamp), mono: false },
-                                { label: "Expiry Date", value: formatTimestamp(entity.expiryTimestamp), mono: false },
-                            ].map(({ label, value, mono }) => (
-                                <div key={label} className="flex justify-between items-center" style={{ paddingBottom: 8, borderBottom: "1px solid var(--border-subtle)" }}>
-                                    <span className="text-muted text-sm">{label}</span>
-                                    <span className={mono ? "mono-sm" : "text-sm"} style={{ color: "var(--text)", maxWidth: 220, textAlign: "right", wordBreak: "break-all" }}>{value}</span>
-                                </div>
-                            ))}
+                    {/* Left Column: Info & Whitelists */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {/* Public Proof Information */}
+                        <div className="card">
+                            <div className="section-title mb-3">On-Chain Proof Truth</div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                {[
+                                    { label: "Entity ID", value: entity.id, mono: true },
+                                    { label: "Authorized Wallet", value: entity.registrant || "Unknown", mono: true },
+                                    { label: "Merkle Root", value: rootDisplay, mono: true },
+                                    { label: "Total Submissions", value: entity.submissionCount.toString(), mono: true },
+                                    { label: "Latest Proof", value: formatTimestamp(entity.proofTimestamp), mono: false },
+                                    { label: "Expiry Date", value: formatTimestamp(entity.expiryTimestamp), mono: false },
+                                ].map(({ label, value, mono }) => (
+                                    <div key={label} className="flex justify-between items-center" style={{ paddingBottom: 8, borderBottom: "1px solid var(--border-subtle)" }}>
+                                        <span className="text-muted text-sm">{label}</span>
+                                        <span className={mono ? "mono-sm" : "text-sm"} style={{ color: "var(--text)", maxWidth: 220, textAlign: "right", wordBreak: "break-all" }}>{value}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Verified Allowed Submitter Tracking */}
+                        <div className="card">
+                            <div className="section-title mb-3">Authorized Verification Wallets</div>
+                            <p className="text-muted text-sm mb-4" style={{ lineHeight: 1.5 }}>
+                                The exact Starknet on-chain addresses allowed to submit cryptographically valid solvency commitments for this entity.
+                            </p>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                {AUTHORIZED_WALLETS.map((wallet) => (
+                                    <div key={wallet} className="flex justify-between items-center" style={{ padding: "8px 12px", background: "var(--surface-2)", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}>
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircleIcon style={{ width: 14, height: 14, color: "var(--green)" }} />
+                                            <span className="text-muted text-xs">Approved Submitter</span>
+                                        </div>
+                                        <span className="mono-sm" style={{ color: "var(--text)" }}>{wallet.substring(0, 8)}...{wallet.substring(wallet.length - 6)}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
 

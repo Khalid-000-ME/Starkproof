@@ -5,7 +5,9 @@ import ProofStatusBadge from "./ProofStatusBadge";
 import ReserveRatioBand from "./ReserveRatioBand";
 import ProofCountdown from "./ProofCountdown";
 import { formatRelativeTime } from "@/lib/starknet";
-import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ChevronUpIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
+
+export const AUTHORIZED_WALLETS = ["0x044bee7bb2e611f5d0d10026ec411bf0617ac9d58b640ff5587f2a163c117b6d"];
 
 export interface EntityRow {
     id: string;
@@ -16,6 +18,7 @@ export interface EntityRow {
     proofTimestamp: bigint | number;
     expiryTimestamp: bigint | number;
     submissionCount: number;
+    registrant?: string;
 }
 
 interface Props {
@@ -50,25 +53,26 @@ export default function EntityTable({ entities, loading }: Props) {
         );
     }
 
-    // Group entities by parent name if they use the "Name|Token |Network" standard encoding
-    const groups: Record<string, { parent: string, activeProofs: number, bands: Record<number, number>, children: EntityRow[] }> = {};
+    // Group entities by both parent name AND the registering wallet to strictly prevent spoofing clusters
+    const groups: Record<string, { parent: string, registrant: string, activeProofs: number, bands: Record<number, number>, children: EntityRow[] }> = {};
 
     entities.forEach(e => {
         const parts = e.name.split("|");
         const parentName = parts[0];
+        const groupKey = `${parentName}_${e.registrant || "demo"}`;
 
-        if (!groups[parentName]) {
-            groups[parentName] = { parent: parentName, activeProofs: 0, bands: {}, children: [] };
+        if (!groups[groupKey]) {
+            groups[groupKey] = { parent: parentName, registrant: e.registrant || "", activeProofs: 0, bands: {}, children: [] };
         }
-        groups[parentName].children.push(e);
+        groups[groupKey].children.push(e);
         if (e.status === "Active" || e.status === "Expiring") {
-            groups[parentName].activeProofs++;
-            groups[parentName].bands[e.band] = (groups[parentName].bands[e.band] || 0) + 1;
+            groups[groupKey].activeProofs++;
+            groups[groupKey].bands[e.band] = (groups[groupKey].bands[e.band] || 0) + 1;
         }
     });
 
-    const toggleExpand = (parent: string) => {
-        setExpanded(p => ({ ...p, [parent]: !p[parent] }));
+    const toggleExpand = (groupKey: string) => {
+        setExpanded(p => ({ ...p, [groupKey]: !p[groupKey] }));
     };
 
     return (
@@ -85,8 +89,8 @@ export default function EntityTable({ entities, loading }: Props) {
                         </tr>
                     </thead>
                     <tbody>
-                        {Object.values(groups).map((g) => {
-                            const isExpanded = expanded[g.parent];
+                        {Object.entries(groups).map(([groupKey, g]) => {
+                            const isExpanded = expanded[groupKey];
                             const hasMultiple = g.children.length > 1;
 
                             // Aggregation logic
@@ -106,14 +110,15 @@ export default function EntityTable({ entities, loading }: Props) {
                             const bandSummary = bandStrings.length ? bandStrings.join(", ") : "No active proofs";
 
                             return (
-                                <React.Fragment key={g.parent}>
+                                <React.Fragment key={groupKey}>
                                     {/* Parent Group Row (or only row if 1 child) */}
                                     {hasMultiple ? (
-                                        <tr onClick={() => toggleExpand(g.parent)} className="clickable" style={{ background: "var(--surface-2)" }}>
+                                        <tr onClick={() => toggleExpand(groupKey)} className="clickable" style={{ background: "var(--surface-2)" }}>
                                             <td>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                                     {isExpanded ? <ChevronUpIcon style={{ width: 14, height: 14, color: "var(--text-muted)" }} /> : <ChevronDownIcon style={{ width: 14, height: 14, color: "var(--text-muted)" }} />}
                                                     <span style={{ fontWeight: 600, color: "var(--text)" }}>{g.parent}</span>
+                                                    {g.registrant && AUTHORIZED_WALLETS.includes(g.registrant) && <CheckCircleIcon style={{ width: 14, height: 14, color: "var(--green)" }} title="Verified Authorized Wallet" />}
                                                 </div>
                                             </td>
                                             <td><ProofStatusBadge status={aggStatus} /></td>
@@ -126,7 +131,10 @@ export default function EntityTable({ entities, loading }: Props) {
                                         <tr className="clickable">
                                             <td>
                                                 <Link href={`/entity/${g.children[0].id}`} style={{ display: "flex", flexDirection: "column", textDecoration: "none" }}>
-                                                    <span style={{ fontWeight: 600, color: "var(--text)" }}>{g.parent}</span>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                                        <span style={{ fontWeight: 600, color: "var(--text)" }}>{g.parent}</span>
+                                                        {g.registrant && AUTHORIZED_WALLETS.includes(g.registrant) && <CheckCircleIcon style={{ width: 14, height: 14, color: "var(--green)" }} title="Verified Authorized Wallet" />}
+                                                    </div>
                                                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                                                         <span style={{ color: "var(--green)", fontWeight: 500, fontSize: 13 }}>{g.children[0].name.split("|")[1] || "BTC"}</span>
                                                         <span style={{ color: "var(--text-dim)", fontSize: 11 }}>{g.children[0].name.split("|")[2] || "Bitcoin"}</span>

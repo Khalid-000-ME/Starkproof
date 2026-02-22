@@ -27,11 +27,7 @@ export default function Navbar() {
             <div className="navbar-inner">
                 {/* Logo */}
                 <Link href="/" className="navbar-logo">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <rect width="20" height="20" rx="4" fill="#10B981" fillOpacity="0.12" />
-                        <path d="M10 4L4 7.5V12.5L10 16L16 12.5V7.5L10 4Z" stroke="#10B981" strokeWidth="1.2" strokeLinejoin="round" />
-                        <path d="M10 8L7 9.5V12.5L10 14L13 12.5V9.5L10 8Z" fill="#10B981" fillOpacity="0.3" />
-                    </svg>
+                    <img src="/logo.png" alt="zkReserves Logo" style={{ width: 20, height: 20, borderRadius: 4 }} />
                     zk<span>Reserves</span>
                 </Link>
 
@@ -43,7 +39,6 @@ export default function Navbar() {
                             href={href}
                             className={`nav-link${pathname.startsWith(href) ? " active" : ""}`}
                         >
-                            <Icon style={{ width: 14, height: 14 }} />
                             {label}
                         </Link>
                     ))}
@@ -52,7 +47,6 @@ export default function Navbar() {
                             href="/dashboard"
                             className={`nav-link${pathname === "/dashboard" ? " active" : ""}`}
                         >
-                            <Squares2X2Icon style={{ width: 14, height: 14 }} />
                             Dashboard
                         </Link>
                     )}

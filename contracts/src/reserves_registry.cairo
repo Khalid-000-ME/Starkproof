@@ -233,6 +233,12 @@ pub mod ReservesRegistry {
         ) {
             // Entity must be registered
             assert(self.entity_registered.read(entity_id), 'Entity not registered');
+            
+            // Only the original registrant wallet can submit proofs for this entity
+            let caller = get_caller_address();
+            let entity_record = self.entities.read(entity_id);
+            assert(caller == entity_record.registrant, 'Unauthorized sender');
+
             // Entity IDs must match
             assert(public_inputs.entity_id == entity_id, 'Entity ID mismatch');
             // reserve_ratio_band must be valid (1–3; 0 means insolvent, cannot be proven)

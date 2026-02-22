@@ -11,6 +11,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { provider, REGISTRY_ADDRESS } from "@/lib/starknet";
+import Grainient from "@/components/Grainient";
 
 export default function LandingPage() {
     const [totalSubmissions, setTotalSubmissions] = useState<number | null>(null);
@@ -79,22 +80,35 @@ export default function LandingPage() {
                 paddingBottom: 80,
                 borderBottom: "1px solid var(--border-subtle)",
             }}>
-                {/* Subtle radial glow matching existing theme */}
+                {/* Grainient Background Effect */}
                 <div style={{
                     position: "absolute",
-                    top: "-10%",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: "80%",
-                    height: "60vh",
-                    background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(6, 182, 212, 0.08) 0%, rgba(16, 185, 129, 0.05) 30%, transparent 60%)",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
                     pointerEvents: "none",
-                    zIndex: 0
-                }} />
+                    zIndex: 0,
+                    opacity: 0.25,
+                    maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+                    WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)"
+                }}>
+                    <Grainient
+                        timeSpeed={0.15}
+                        color1="#06b6d4"   /* Cyan accent */
+                        color2="#10b981"   /* Green accent */
+                        color3="#0a0a0a"   /* Dark background */
+                        warpStrength={2.0}
+                        zoom={1.2}
+                    />
+                </div>
 
                 <div className="container" style={{ position: "relative", zIndex: 1 }}>
                     {/* Title Block */}
                     <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center" }}>
+                        <div style={{ marginBottom: 24, display: "flex", justifyContent: "center" }}>
+                            <img src="/logo.png" alt="zkReserves" style={{ width: 80, height: 80, borderRadius: 16, boxShadow: "0 8px 24px rgba(16, 185, 129, 0.2)" }} />
+                        </div>
                         <h1 style={{
                             fontFamily: "'Playfair Display', serif",
                             fontSize: "clamp(48px, 7vw, 76px)",
@@ -129,15 +143,6 @@ export default function LandingPage() {
                             </Link>
                         </div>
 
-                        {/* Token Logos to show multi-token support */}
-                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16, marginBottom: 72, flexWrap: "wrap", opacity: 0.8 }}>
-                            <span style={{ fontSize: 13, color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 500, marginRight: 8 }}>Supported Assets:</span>
-                            <img src="https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/btc.png" width="28" height="28" alt="Bitcoin" title="Bitcoin (Primary)" style={{ borderRadius: "50%", filter: "drop-shadow(0 0 8px rgba(247,147,26,0.3))", transform: "scale(1.1)" }} />
-                            <img src="https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/eth.png" width="24" height="24" alt="Ethereum" title="Ethereum" style={{ borderRadius: "50%", opacity: 0.7 }} />
-                            <img src="https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/usdc.png" width="24" height="24" alt="USDC" title="USDC" style={{ borderRadius: "50%", opacity: 0.7 }} />
-                            <img src="https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/usdt.png" width="24" height="24" alt="Tether" title="Tether" style={{ borderRadius: "50%", opacity: 0.7 }} />
-                            <img src="https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/sol.png" width="24" height="24" alt="Solana" title="Solana" style={{ borderRadius: "50%", opacity: 0.7 }} />
-                        </div>
                     </div>
 
                     {/* Image / Card Blocks mimicking the structure of the reference */}
