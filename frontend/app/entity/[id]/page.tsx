@@ -347,6 +347,11 @@ export default function EntityPage() {
                         <div className="section-title mb-1 flex justify-between items-center w-full">
                             <span>Verify True ZK Solvency</span>
                             <div className="flex gap-2">
+                                {starkProof.length > 0 && (
+                                    <button className="btn btn-secondary btn-sm" onClick={() => navigator.clipboard.writeText(starkProof)}>
+                                        Copy Full JSON
+                                    </button>
+                                )}
                                 <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()}>
                                     Upload JSON
                                 </button>

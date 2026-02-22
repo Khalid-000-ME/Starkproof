@@ -28,6 +28,7 @@ export interface ProofOutput {
     totalLiabilitiesBTC: number;
     estimatedRatioPct: number;
     starkProofBytecode?: string;
+    executionId?: string;
 }
 
 export interface ProofGenerationProgress {
@@ -172,7 +173,8 @@ export async function generateProof(
         totalReservesBTC: totalReservesSatoshi / 1e8,
         totalLiabilitiesBTC: Number(totalLiabilitiesBigInt) / 1e8,
         estimatedRatioPct: ratioPct,
-        starkProofBytecode: trueZkPayload?.proofData?.starkProofBytecode
+        starkProofBytecode: trueZkPayload?.proofData?.starkProofBytecode,
+        executionId: trueZkPayload?.proofData?.executionId
     };
 }
 

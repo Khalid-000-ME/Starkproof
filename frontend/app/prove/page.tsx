@@ -21,8 +21,8 @@ import {
 type Step = 1 | 2 | 3 | 4;
 
 const DEMO_SCENARIO = {
-    btcAddresses: "tb1qax7ynrp5f84g9frfnm6lpatqmhf2hmlhd0guvz",
-    liabilityCsv: `account_id,liability_satoshi\nalice,20000\nbob,30000\ncarol,15000\ndave,12000\neve,8000`,
+    addressEntries: [{ address: "tb1qax7ynrp5f84g9frfnm6lpatqmhf2hmlhd0guvz", network: "bitcoin" }],
+    liabilityCsv: `account_id,liability\n0x05d985a6eabf7b1df25e01bcdfbaedce38b4d8349141be36d2460668b577a493,20000\n0x018b32087508cf31c463b28ee55ac7bbaec7fd3bc65c92c97f48ff3cbec8a1ce,30000\n0x067edebc6dbf6aa1a3ee7c10b14c1941ee04bbceca8d89e4c19fed93de146b2b,15000\n0x021b32087508cf31c463b28ee55ac7bbaec7fd3bc65c92c97f48ff3cbec8a1d1,12000\n0x032b32087508cf31c463b28ee55ac7bbaec7fd3bc65c92c97f48ff3cbec8a1e2,8000`,
 };
 
 const STEP_META = [
@@ -42,7 +42,7 @@ export default function ProvePage() {
     const [entityInfo, setEntityInfo] = useState<{ id: string, nameHash: string } | null>(null);
 
     const [step, setStep] = useState<Step>(1);
-    const [btcAddresses, setBtcAddresses] = useState("");
+    const [addressEntries, setAddressEntries] = useState([{ address: "", network: "ethereum_sepolia" }]);
     const [assetType, setAssetType] = useState("BTC");
     const [balances, setBalances] = useState<any[]>([]);
     const [blockHeight, setBlockHeight] = useState<number>(0);
@@ -93,24 +93,65 @@ export default function ProvePage() {
     // ── Pre-fill addresses from local storage if returning ────────────────
     useEffect(() => {
         if (entityInfo) {
-            const saved = localStorage.getItem(`btc_addresses_${entityInfo.id}`);
-            if (saved) setBtcAddresses(saved);
+            const saved = localStorage.getItem(`address_entries_${entityInfo.id}`);
+            if (saved) setAddressEntries(JSON.parse(saved));
         }
     }, [entityInfo]);
 
     // ── Step 1: Fetch Balances ─────────────────────────────────────────────
     async function handleFetchBalances() {
-        const addrs = btcAddresses.split("\n").map(a => a.trim()).filter(Boolean);
-        if (addrs.length === 0) { setError("Enter at least one wallet address"); return; }
+        const entries = addressEntries.filter(e => e.address.trim() !== "");
+        if (entries.length === 0) { setError("Enter at least one wallet address"); return; }
         setError("");
         setLoading(true);
         try {
             if (assetType === "BTC") {
+                const addrs = entries.map(e => e.address.trim());
                 const isTestnet = addrs.every(a => a.startsWith("tb1") || a.startsWith("m") || a.startsWith("n"));
                 const [bals, height] = await Promise.all([getMultipleBalances(addrs), getCurrentBlockHeight(isTestnet)]);
                 setBalances(bals);
                 setBlockHeight(height);
+            } else if (assetType === "ETH" || assetType === "USDC") {
+                // Fetch real balances via ethers using pure public RPCs
+                const { ethers } = await import("ethers");
+
+                const rpcs: Record<string, string> = {
+                    base_sepolia: "https://sepolia.base.org",
+                    arbitrum_sepolia: "https://sepolia-rollup.arbitrum.io/rpc",
+                    ethereum_sepolia: "https://ethereum-sepolia-rpc.publicnode.com"
+                };
+
+                const usdcContracts: Record<string, string> = {
+                    base_sepolia: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+                    arbitrum_sepolia: "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+                    ethereum_sepolia: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+                };
+
+                let realBalances = [];
+                let maxBlockHeight = 0;
+
+                for (const entry of entries) {
+                    const provider = new ethers.providers.JsonRpcProvider(rpcs[entry.network]);
+                    const currentBlock = await provider.getBlockNumber();
+                    if (currentBlock > maxBlockHeight) maxBlockHeight = currentBlock;
+
+                    if (assetType === "ETH") {
+                        const bal = await provider.getBalance(entry.address);
+                        const num = Number(ethers.utils.formatEther(bal));
+                        realBalances.push({ address: entry.address, balance: Math.floor(num * 100000000), satoshi: Math.floor(num * 100000000) });
+                    } else if (assetType === "USDC") {
+                        const abi = ["function balanceOf(address owner) view returns (uint256)"];
+                        const contract = new ethers.Contract(usdcContracts[entry.network], abi, provider);
+                        const bal = await contract.balanceOf(entry.address);
+                        const num = Number(ethers.utils.formatUnits(bal, 6));
+                        realBalances.push({ address: entry.address, balance: Math.floor(num * 100000000), satoshi: Math.floor(num * 100000000) });
+                    }
+                }
+
+                setBlockHeight(maxBlockHeight);
+                setBalances(realBalances);
             } else {
+                const addrs = entries.map(e => e.address.trim());
                 await new Promise(r => setTimeout(r, 1200));
                 const mockBalances = addrs.map((addr) => ({
                     address: addr,
@@ -121,10 +162,11 @@ export default function ProvePage() {
                 setBlockHeight(mockBlockHeight);
                 setBalances(mockBalances);
             }
-            if (entityInfo) localStorage.setItem(`btc_addresses_${entityInfo.id}`, btcAddresses);
+            if (entityInfo) localStorage.setItem(`address_entries_${entityInfo.id}`, JSON.stringify(addressEntries));
             setStep(2);
         } catch (e: any) {
-            setError(e.message);
+            console.error(e);
+            setError(e.message || "Failed to fetch balances across networks");
         } finally {
             setLoading(false);
         }
@@ -142,7 +184,7 @@ export default function ProvePage() {
     // ── Step 3: Run ZK circuit ─────────────────────────────────────────────────
     async function handleRunCircuit() {
         if (!csvContent.trim()) { setError("Upload or paste your liability CSV"); return; }
-        const addrs = btcAddresses.split("\n").map(a => a.trim()).filter(Boolean);
+        const addrs = addressEntries.filter(e => e.address.trim() !== "").map(a => a.address.trim());
         setError("");
         setLoading(true);
         setProgressSteps([]);
@@ -286,28 +328,73 @@ export default function ProvePage() {
                                 </p>
                                 <div className="field mb-4">
                                     <label className="label">Select Digital Asset</label>
-                                    <select className="input input-mono" value={assetType} onChange={e => setAssetType(e.target.value)} style={{ appearance: "auto", paddingRight: 32 }}>
+                                    <select className="input input-mono mb-2" value={assetType} onChange={e => setAssetType(e.target.value)} style={{ appearance: "auto", paddingRight: 32 }}>
                                         <option value="BTC">Bitcoin (BTC) - via Xverse API</option>
-                                        <option value="ETH">Ethereum (ETH) - Mocked for Demo</option>
-                                        <option value="USDC">USD Coin (USDC) - Mocked for Demo</option>
+                                        <option value="ETH">Ethereum (ETH) - via Public RPC</option>
+                                        <option value="USDC">USD Coin (USDC) - via Smart Contract</option>
                                         <option value="SOL">Solana (SOL) - Mocked for Demo</option>
                                     </select>
                                 </div>
                                 <div className="field mb-4">
-                                    <label className="label">Wallet Addresses ({assetType} - one per line)</label>
-                                    <textarea
-                                        className="input input-mono"
-                                        rows={5}
-                                        placeholder={`bc1qxxx...\n0xabc123...`}
-                                        value={btcAddresses}
-                                        onChange={(e) => setBtcAddresses(e.target.value)}
-                                    />
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="label" style={{ marginBottom: 0 }}>Wallet Addresses ({assetType})</label>
+                                    </div>
+
+                                    {addressEntries.map((entry, idx) => (
+                                        <div key={idx} className="flex gap-2 mb-2">
+                                            <input
+                                                className="input input-mono w-full"
+                                                placeholder={(assetType === "ETH" || assetType === "USDC") ? "0x123..." : "bc1qxxx..."}
+                                                value={entry.address}
+                                                onChange={(e) => {
+                                                    const newEntries = [...addressEntries];
+                                                    newEntries[idx].address = e.target.value;
+                                                    setAddressEntries(newEntries);
+                                                }}
+                                            />
+                                            {(assetType === "ETH" || assetType === "USDC") && (
+                                                <select
+                                                    className="input input-mono"
+                                                    value={entry.network}
+                                                    onChange={(e) => {
+                                                        const newEntries = [...addressEntries];
+                                                        newEntries[idx].network = e.target.value;
+                                                        setAddressEntries(newEntries);
+                                                    }}
+                                                    style={{ appearance: "auto", minWidth: 160 }}
+                                                >
+                                                    <option value="ethereum_sepolia">Eth Sepolia</option>
+                                                    <option value="base_sepolia">Base Sepolia</option>
+                                                    <option value="arbitrum_sepolia">Arb Sepolia</option>
+                                                </select>
+                                            )}
+                                            <button
+                                                className="btn btn-ghost"
+                                                style={{ padding: "0 12px" }}
+                                                onClick={() => {
+                                                    if (addressEntries.length === 1) {
+                                                        setAddressEntries([{ address: "", network: "ethereum_sepolia" }]);
+                                                    } else {
+                                                        setAddressEntries(addressEntries.filter((_, i) => i !== idx));
+                                                    }
+                                                }}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button
+                                        className="btn btn-secondary btn-sm mt-2"
+                                        onClick={() => setAddressEntries([...addressEntries, { address: "", network: "ethereum_sepolia" }])}
+                                    >
+                                        + Add another address
+                                    </button>
                                 </div>
                                 <div className="flex gap-2">
                                     <button className="btn btn-primary" onClick={handleFetchBalances} disabled={loading}>
                                         {loading ? <><span className="spinner" /> Fetching...</> : <>Next: Liabilities <ChevronRightIcon style={{ width: 14, height: 14 }} /></>}
                                     </button>
-                                    <button className="btn btn-ghost btn-sm" onClick={() => setBtcAddresses(DEMO_SCENARIO.btcAddresses)}>
+                                    <button className="btn btn-ghost btn-sm" onClick={() => setAddressEntries(DEMO_SCENARIO.addressEntries)}>
                                         Use demo address
                                     </button>
                                 </div>
@@ -342,7 +429,7 @@ export default function ProvePage() {
                                     <textarea
                                         className="input input-mono"
                                         rows={6}
-                                        placeholder={"account_id,liability_satoshi\nalice,20000\nbob,30000"}
+                                        placeholder={"account_id,liability\n0x05d985a6eabf7b1df25e01bcdfbaedce38b4d8349141be36d2460668b577a493,20000\n0x018b32087508cf31c463b28ee55ac7bbaec7fd3bc65c92c97f48ff3cbec8a1ce,30000"}
                                         value={csvContent}
                                         onChange={(e) => setCsvContent(e.target.value)}
                                     />

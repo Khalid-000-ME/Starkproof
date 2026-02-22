@@ -115,6 +115,22 @@ export default function RegistryPage() {
                     setLoading(false);
                     return;
                 }
+                const cached = sessionStorage.getItem("registry_entities_cache");
+                const cacheTime = sessionStorage.getItem("registry_entities_cache_time");
+                const now = Date.now();
+
+                if (cached && cacheTime && now - Number(cacheTime) < 60000) { // 1 min cache
+                    const parsed = JSON.parse(cached).map((e: any) => ({
+                        ...e,
+                        blockHeight: BigInt(e.blockHeight),
+                        proofTimestamp: BigInt(e.proofTimestamp),
+                        expiryTimestamp: BigInt(e.expiryTimestamp)
+                    }));
+                    setEntities(parsed);
+                    setLoading(false);
+                    return;
+                }
+
                 const countRes = await callContract("get_entity_count");
                 const count = Number(BigInt(countRes[0]));
                 if (count === 0) { setEntities([]); setLoading(false); return; }
@@ -147,6 +163,12 @@ export default function RegistryPage() {
                     }
                 }
                 loaded.sort((a, b) => Number(b.proofTimestamp) - Number(a.proofTimestamp));
+
+                sessionStorage.setItem("registry_entities_cache", JSON.stringify(loaded, (key, value) =>
+                    typeof value === 'bigint' ? value.toString() : value
+                ));
+                sessionStorage.setItem("registry_entities_cache_time", now.toString());
+
                 setEntities(loaded);
                 setLoading(false);
 
@@ -254,7 +276,6 @@ export default function RegistryPage() {
 
     return (
         <>
-            <LiveBlockTicker />
             <div className="page">
                 <div className="container" style={{ paddingTop: 32, paddingBottom: 48 }}>
                     <div className="flex items-center justify-between mb-6">

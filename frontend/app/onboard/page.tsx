@@ -22,8 +22,8 @@ type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
 const DEMO_SCENARIO = {
     entityName: "Demo Exchange",
-    btcAddresses: "tb1qax7ynrp5f84g9frfnm6lpatqmhf2hmlhd0guvz",
-    liabilityCsv: `account_id,liability_satoshi\nalice,20000\nbob,30000\ncarol,15000\ndave,12000\neve,8000`,
+    addressEntries: [{ address: "tb1qax7ynrp5f84g9frfnm6lpatqmhf2hmlhd0guvz", network: "bitcoin" }],
+    liabilityCsv: `account_id,liability\n0x05d985a6eabf7b1df25e01bcdfbaedce38b4d8349141be36d2460668b577a493,20000\n0x018b32087508cf31c463b28ee55ac7bbaec7fd3bc65c92c97f48ff3cbec8a1ce,30000\n0x067edebc6dbf6aa1a3ee7c10b14c1941ee04bbceca8d89e4c19fed93de146b2b,15000\n0x021b32087508cf31c463b28ee55ac7bbaec7fd3bc65c92c97f48ff3cbec8a1d1,12000\n0x032b32087508cf31c463b28ee55ac7bbaec7fd3bc65c92c97f48ff3cbec8a1e2,8000`,
 };
 
 const STEP_META = [
@@ -40,7 +40,7 @@ export default function OnboardPage() {
     const [entityName, setEntityName] = useState("");
     const [entityId, setEntityId] = useState("");
     const [assetType, setAssetType] = useState("BTC");
-    const [btcAddresses, setBtcAddresses] = useState("");
+    const [addressEntries, setAddressEntries] = useState([{ address: "", network: "ethereum_sepolia" }]);
     const [balances, setBalances] = useState<any[]>([]);
     const [csvContent, setCsvContent] = useState("");
     const [proof, setProof] = useState<any>(null);
@@ -49,7 +49,6 @@ export default function OnboardPage() {
     const [error, setError] = useState("");
     const [txHash, setTxHash] = useState("");
     const [blockHeight, setBlockHeight] = useState<number>(0);
-    const [evmNetwork, setEvmNetwork] = useState("ethereum_sepolia"); // base_sepolia, arbitrum_sepolia
     const [accountId, setAccountId] = useState("");
     const fileRef = useRef<HTMLInputElement>(null);
 
@@ -81,12 +80,13 @@ export default function OnboardPage() {
 
     // ── Step 3: Fetch Balances ─────────────────────────────────────────────
     async function handleFetchBalances() {
-        const addrs = btcAddresses.split("\n").map(a => a.trim()).filter(Boolean);
-        if (addrs.length === 0) { setError("Enter at least one wallet address"); return; }
+        const entries = addressEntries.filter(e => e.address.trim() !== "");
+        if (entries.length === 0) { setError("Enter at least one wallet address"); return; }
         setError("");
         setLoading(true);
         try {
             if (assetType === "BTC") {
+                const addrs = entries.map(e => e.address.trim());
                 const isTestnet = addrs.every(a => a.startsWith("tb1") || a.startsWith("m") || a.startsWith("n"));
                 const [bals, height] = await Promise.all([getMultipleBalances(addrs), getCurrentBlockHeight(isTestnet)]);
                 setBalances(bals);
@@ -107,33 +107,32 @@ export default function OnboardPage() {
                     ethereum_sepolia: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
                 };
 
-                const provider = new ethers.providers.JsonRpcProvider(rpcs[evmNetwork]);
-                const blockHeightFetched = await provider.getBlockNumber();
-                setBlockHeight(blockHeightFetched);
-
                 let realBalances = [];
+                let maxBlockHeight = 0;
 
-                if (assetType === "ETH") {
-                    for (const addr of addrs) {
-                        const bal = await provider.getBalance(addr);
+                for (const entry of entries) {
+                    const provider = new ethers.providers.JsonRpcProvider(rpcs[entry.network]);
+                    const currentBlock = await provider.getBlockNumber();
+                    if (currentBlock > maxBlockHeight) maxBlockHeight = currentBlock;
+
+                    if (assetType === "ETH") {
+                        const bal = await provider.getBalance(entry.address);
                         const num = Number(ethers.utils.formatEther(bal));
-                        // the circuit uses sats/wei internally, just convert to closest equivalent number
-                        realBalances.push({ address: addr, balance: Math.floor(num * 100000000), satoshi: Math.floor(num * 100000000) });
-                    }
-                } else if (assetType === "USDC") {
-                    const abi = ["function balanceOf(address owner) view returns (uint256)"];
-                    const contract = new ethers.Contract(usdcContracts[evmNetwork], abi, provider);
-                    for (const addr of addrs) {
-                        const bal = await contract.balanceOf(addr);
-                        // USDC has 6 decimals, normalize it
+                        realBalances.push({ address: entry.address, balance: Math.floor(num * 100000000), satoshi: Math.floor(num * 100000000) });
+                    } else if (assetType === "USDC") {
+                        const abi = ["function balanceOf(address owner) view returns (uint256)"];
+                        const contract = new ethers.Contract(usdcContracts[entry.network], abi, provider);
+                        const bal = await contract.balanceOf(entry.address);
                         const num = Number(ethers.utils.formatUnits(bal, 6));
-                        realBalances.push({ address: addr, balance: Math.floor(num * 100000000), satoshi: Math.floor(num * 100000000) });
+                        realBalances.push({ address: entry.address, balance: Math.floor(num * 100000000), satoshi: Math.floor(num * 100000000) });
                     }
                 }
 
+                setBlockHeight(maxBlockHeight);
                 setBalances(realBalances);
             } else {
                 // Mock for SOL
+                const addrs = entries.map(e => e.address.trim());
                 await new Promise(r => setTimeout(r, 1200));
                 const mockBalances = addrs.map((addr) => ({
                     address: addr,
@@ -165,13 +164,13 @@ export default function OnboardPage() {
     // ── Step 5: Run ZK circuit ─────────────────────────────────────────────────
     async function handleRunCircuit() {
         if (!csvContent.trim()) { setError("Upload or paste your liability CSV"); return; }
-        const addrs = btcAddresses.split("\n").map(a => a.trim()).filter(Boolean);
+        const addrs = addressEntries.filter(e => e.address.trim() !== "").map(a => a.address.trim());
         setError("");
         setLoading(true);
         setProgressSteps([]);
         try {
             const network = assetType === "BTC" ? "Bitcoin" : assetType === "SOL" ? "Solana" : "Ethereum";
-            const fullEntityName = `${entityName.trim().substring(0, 10)}|${assetType}|${network}`;
+            const fullEntityName = `${entityName.trim().substring(0, 17)}|${assetType}|${network}`;
             const felt = stringToFelt252(fullEntityName);
             const registrant = walletAddress ? BigInt(walletAddress) : 0n;
             const entityIdBig = computeEntityId(felt, registrant);
@@ -214,7 +213,7 @@ export default function OnboardPage() {
         setLoading(true);
         try {
             const network = assetType === "BTC" ? "Bitcoin" : assetType === "SOL" ? "Solana" : "Ethereum";
-            const fullEntityName = `${entityName.trim().substring(0, 10)}|${assetType}|${network}`;
+            const fullEntityName = `${entityName.trim().substring(0, 17)}|${assetType}|${network}`;
             const nameFelt = stringToFelt252(fullEntityName);
             const nameFeltHex = "0x" + nameFelt.toString(16);
             const calls = [
@@ -383,35 +382,67 @@ export default function OnboardPage() {
                             </select>
                         </div>
 
-                        {(assetType === "ETH" || assetType === "USDC") && (
-                            <div className="field mb-4">
-                                <label className="label">Select Deployment Network</label>
-                                <select className="input input-mono" value={evmNetwork} onChange={e => setEvmNetwork(e.target.value)} style={{ appearance: "auto", paddingRight: 32 }}>
-                                    <option value="ethereum_sepolia">Ethereum Sepolia</option>
-                                    <option value="base_sepolia">Base Sepolia</option>
-                                    <option value="arbitrum_sepolia">Arbitrum Sepolia</option>
-                                </select>
-                            </div>
-                        )}
-
                         <div className="field mb-4">
                             <div className="flex items-center justify-between mb-2">
-                                <label className="label" style={{ marginBottom: 0 }}>Wallet Addresses ({assetType} - one per line)</label>
+                                <label className="label" style={{ marginBottom: 0 }}>Wallet Addresses ({assetType})</label>
                             </div>
-                            <textarea
-                                className="input input-mono"
-                                rows={5}
-                                placeholder={(assetType === "ETH" || assetType === "USDC") ? "0x123...456\n0xabc...def" : "bc1qxxx...\nbc1qyyy..."}
-                                value={btcAddresses}
-                                onChange={(e) => setBtcAddresses(e.target.value)}
-                            />
+
+                            {addressEntries.map((entry, idx) => (
+                                <div key={idx} className="flex gap-2 mb-2">
+                                    <input
+                                        className="input input-mono w-full"
+                                        placeholder={(assetType === "ETH" || assetType === "USDC") ? "0x123..." : "bc1qxxx..."}
+                                        value={entry.address}
+                                        onChange={(e) => {
+                                            const newEntries = [...addressEntries];
+                                            newEntries[idx].address = e.target.value;
+                                            setAddressEntries(newEntries);
+                                        }}
+                                    />
+                                    {(assetType === "ETH" || assetType === "USDC") && (
+                                        <select
+                                            className="input input-mono"
+                                            value={entry.network}
+                                            onChange={(e) => {
+                                                const newEntries = [...addressEntries];
+                                                newEntries[idx].network = e.target.value;
+                                                setAddressEntries(newEntries);
+                                            }}
+                                            style={{ appearance: "auto", minWidth: 160 }}
+                                        >
+                                            <option value="ethereum_sepolia">Eth Sepolia</option>
+                                            <option value="base_sepolia">Base Sepolia</option>
+                                            <option value="arbitrum_sepolia">Arb Sepolia</option>
+                                        </select>
+                                    )}
+                                    <button
+                                        className="btn btn-ghost"
+                                        style={{ padding: "0 12px" }}
+                                        onClick={() => {
+                                            if (addressEntries.length === 1) {
+                                                setAddressEntries([{ address: "", network: "ethereum_sepolia" }]);
+                                            } else {
+                                                setAddressEntries(addressEntries.filter((_, i) => i !== idx));
+                                            }
+                                        }}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+                            <button
+                                className="btn btn-secondary btn-sm mt-2"
+                                onClick={() => setAddressEntries([...addressEntries, { address: "", network: "ethereum_sepolia" }])}
+                            >
+                                + Add another address
+                            </button>
                         </div>
                         <div className="flex gap-2">
                             <button className="btn btn-secondary btn-sm" onClick={() => setStep(2)}>Back</button>
                             <button className="btn btn-primary" onClick={handleFetchBalances} disabled={loading}>
                                 {loading ? <><span className="spinner" /> Fetching...</> : <>Fetch Balances <ChevronRightIcon style={{ width: 14, height: 14 }} /></>}
                             </button>
-                            <button className="btn btn-ghost btn-sm" onClick={() => setBtcAddresses(DEMO_SCENARIO.btcAddresses)}>
+                            <button className="btn btn-ghost btn-sm" onClick={() => setAddressEntries(DEMO_SCENARIO.addressEntries)}>
                                 Use demo address
                             </button>
                         </div>
@@ -438,7 +469,7 @@ export default function OnboardPage() {
                         <div className="alert alert-info mb-4">
                             <InformationCircleIcon style={{ width: 16, height: 16, flexShrink: 0 }} />
                             <div style={{ fontSize: 12 }}>
-                                Format: <span style={{ fontFamily: "var(--mono)" }}>account_id,liability_satoshi</span> (one row per customer, no header required but accepted)
+                                Format: <span style={{ fontFamily: "var(--mono)" }}>account_id,liability</span> (one row per customer, no header required but accepted)
                             </div>
                         </div>
 
@@ -454,7 +485,7 @@ export default function OnboardPage() {
                             <textarea
                                 className="input input-mono"
                                 rows={6}
-                                placeholder={"account_id,liability_satoshi\nalice,20000\nbob,30000"}
+                                placeholder={"account_id,liability\n0x05d985a6eabf7b1df25e01bcdfbaedce38b4d8349141be36d2460668b577a493,20000\n0x018b32087508cf31c463b28ee55ac7bbaec7fd3bc65c92c97f48ff3cbec8a1ce,30000"}
                                 value={csvContent}
                                 onChange={(e) => setCsvContent(e.target.value)}
                             />

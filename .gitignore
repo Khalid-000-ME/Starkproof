@@ -22,8 +22,8 @@ coverage/
 
 # Scarb / Cairo / Starknet Contracts
 contracts/target/
-target/
 .snfoundry_cache/
+circuit/target/
 
 # Custom / Temp Docs
 starknet_help/
@@ -43,3 +43,4 @@ release.tar.gz
 trace.bin
 
 *.csv
+new.json

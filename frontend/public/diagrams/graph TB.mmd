@@ -1,0 +1,48 @@
+graph TB
+    subgraph Browser [Browser -- Operator]
+        UI[Next.js Frontend]
+        ZK[ZK Circuit Runner\nCairo WASM]
+        MK[Poseidon Merkle\nTree Builder]
+        XV[Xverse BTC\nBalance Fetcher]
+    end
+
+    subgraph API [Next.js API Routes]
+        PG[/api/proof/generate\nRuns ZK circuit]
+        PS[/api/proof/submit\nRelays to Starknet]
+        ES[/api/ecosystem/stats\nAggregate stats]
+        VM[/api/verify/manual\nProof verification]
+        SC[/api/scheduler/check\nExpiry watchdog]
+    end
+
+    subgraph Starknet [Starknet Sepolia]
+        RR[ReservesRegistry.cairo\nentity_id -> ProofRecord]
+        PSC[ProofScheduler.cairo\nExpiry enforcement]
+    end
+
+    subgraph BTC [Bitcoin Network]
+        XAPI[Xverse API\nBalance + block height]
+        BTC[Bitcoin Blockchain\nUTXO set]
+    end
+
+    UI --> ZK
+    UI --> MK
+    XV --> XAPI
+    XAPI --> BTC
+
+    UI --> PG
+    PG --> ZK
+    PG --> MK
+    UI --> PS
+    PS --> RR
+    PS --> PSC
+    UI --> ES
+    ES --> RR
+    UI --> VM
+
+    RR --> PSC
+    PSC --> SC
+
+    style Browser fill:#111,stroke:#333,color:#ddd
+    style API fill:#0d0d0d,stroke:#2a2a2a,color:#ddd
+    style Starknet fill:#0a0a1a,stroke:#3333aa,color:#ddd
+    style BTC fill:#1a0f00,stroke:#aa6600,color:#ddd

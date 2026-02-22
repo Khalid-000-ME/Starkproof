@@ -5,11 +5,14 @@
 > Tracks: Privacy + Bitcoin
 > Stack: Cairo 2.15 · Next.js 16 · Xverse API · StarknetJS · Braavos Wallet
 
-zkReserves is a trustless, privacy-preserving Proof of Reserves protocol
-built on Starknet. Any Bitcoin-holding entity -- exchanges, funds, custodians
--- can cryptographically prove their Bitcoin holdings exceed customer
+zkReserves is a trustless, cross-chain, privacy-preserving Proof of Reserves protocol
+built on Starknet. Any digital asset-holding entity — exchanges, funds, custodians
+— can cryptographically prove their reserves (Bitcoin, Ethereum, USDC) exceed customer
 liabilities, without revealing wallet addresses, exact balances, or any
 customer-identifying information.
+
+The latest enhancements integrate native multi-chain support (Bitcoin via Xverse, EVM chains via public RPCs),
+and Native STARK verification utilizing Starkware's powerful Stwo prover as an independent verification layer.
 
 ---
 
@@ -22,9 +25,9 @@ customer-identifying information.
    EXCHANGE OPERATOR                       PUBLIC / ANYONE
    ─────────────────                       ────────────────
    1. Register entity                      Browse the registry
-   2. Add BTC addresses                    View live solvency status
+   2. Add BTC/ETH/USDC addresses           View live solvency status
    3. Upload liability CSV                 Verify individual inclusion
-   4. Run ZK circuit (browser)             Download audit reports
+   4. Run ZK circuit (Stwo Prover)         Download audit reports
    5. Submit proof to Starknet
    6. Renew every 28 days
 
@@ -71,9 +74,9 @@ customer-identifying information.
   │   │
   │   ├── Step 1           Connect Starknet wallet (Braavos)
   │   ├── Step 2           Name your entity + preview entity_id
-  │   ├── Step 3           Add Bitcoin cold wallet addresses
+  │   ├── Step 3           Add cold wallet addresses (BTC/ETH/USDC across EVM L2s)
   │   ├── Step 4           Upload customer liability CSV
-  │   ├── Step 5           Run ZK circuit in browser
+  │   ├── Step 5           Run ZK circuit Native Stwo Prover
   │   └── Step 6           Sign and submit to Starknet
   │
   ├── /dashboard           Operator dashboard (wallet-gated)
@@ -118,8 +121,9 @@ customer-identifying information.
                           Preview entity_id = Poseidon(name_hash, address)
        │
        ▼
-  /onboard Step 3         Add BTC cold wallet addresses (one per line)
-                          Xverse API fetches live confirmed balances
+  /onboard Step 3         Add BTC/EVM cold wallet addresses (one per line)
+                          Xverse API fetches live confirmed BTC balances
+                          Ethers.js fetches ETH/USDC balances via RPCs
        │
        ▼
   /onboard Step 4         Upload customer liability CSV
@@ -198,8 +202,8 @@ customer-identifying information.
   PRIVATE INPUTS (never leave the browser)       PUBLIC INPUTS (on-chain)
   ─────────────────────────────────────────       ───────────────────────
 
-  BTC wallet addresses                     ─────> entity_id
-  BTC confirmed balances                          block_height
+  BTC/ETH/USDC addresses                   ─────> entity_id
+  Live confirmed balances                         block_height
   Customer account IDs                            liability_merkle_root
   Customer liability amounts               ─────> reserve_ratio_band
                                                   proof_timestamp
@@ -306,11 +310,12 @@ customer-identifying information.
   ─────────────────────────────────────────────────────────────
   ZK Contracts       Cairo 2.15 (Starknet native)
   Proof Circuit      Cairo (compiled to STARK-verifiable bytecode)
+  Stark Prover       Stwo Native Prover (True ZK backend)
   Frontend           Next.js 16 (App Router, Turbopack)
   Styling            Vanilla CSS (design tokens, no framework)
   Icons              Heroicons / Phosphor Icons (no emojis)
   Wallet             Braavos (Starknet Sepolia)
-  BTC Data           Xverse Bitcoin RPC API
+  Chain Data         Xverse Bitcoin API, Ethers.js multi-chain RPCs
   Hashing            Poseidon (native to Starknet/Cairo)
   Deployment         Starknet Sepolia (testnet)
   ─────────────────────────────────────────────────────────────

@@ -32,10 +32,14 @@ export async function POST(req: NextRequest) {
             }
         } catch (e) { }
 
-        logs.push({
+        const logEntry = {
             timestamp_logged: new Date().toISOString(),
             ...body
-        });
+        };
+        // Remove the massive bytecode from the local log array to avoid memory bloat
+        if (logEntry.starkProofBytecode) delete logEntry.starkProofBytecode;
+
+        logs.push(logEntry);
 
         fs.writeFileSync(logFilePath, JSON.stringify(logs, null, 2));
 
