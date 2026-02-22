@@ -422,6 +422,7 @@ export default function EntityPage() {
 
     const nameParts = entity.name.split("|");
     const displayName = nameParts[0];
+    const tokenName = nameParts[1] || "";
 
     return (
         <div className="page">
@@ -431,6 +432,12 @@ export default function EntityPage() {
                     <Link href="/registry" style={{ color: "var(--text-muted)" }}>Registry</Link>
                     <span>/</span>
                     <span>{displayName}</span>
+                    {tokenName && (
+                        <>
+                            <span>/</span>
+                            <span style={{ color: "var(--green)" }}>{tokenName}</span>
+                        </>
+                    )}
                 </div>
 
                 {/* Header */}
@@ -442,6 +449,11 @@ export default function EntityPage() {
                                     {displayName}
                                     {entity.registrant && AUTHORIZED_WALLETS.includes(entity.registrant) && <CheckCircleIcon style={{ width: 18, height: 18, color: "var(--green)" }} title="Verified Authorized Tracker" />}
                                 </h1>
+                                {tokenName && (
+                                    <div className="badge" style={{ background: "var(--surface-3)", color: "var(--green)" }}>
+                                        {tokenName}
+                                    </div>
+                                )}
                                 <ProofStatusBadge status={entity.status} />
                             </div>
                             <div className="flex items-center gap-4 flex-wrap">
@@ -507,13 +519,28 @@ export default function EntityPage() {
 
                     {/* True ZK Solvency Verification Widget */}
                     <div className="card">
-                        <div className="section-title mb-1 flex justify-between items-center w-full">
-                            <span>Verify True ZK Solvency</span>
-                            <div className="flex gap-2">
+                        <div className="section-title mb-1 flex justify-between items-center w-full flex-wrap" style={{ gap: "12px" }}>
+                            <span style={{ whiteSpace: "nowrap", flexShrink: 0 }}>Verify True ZK Solvency</span>
+                            <div className="flex flex-wrap gap-2">
                                 {starkProof.length > 0 && (
-                                    <button className="btn btn-secondary btn-sm" onClick={() => navigator.clipboard.writeText(starkProof)}>
-                                        Copy Full JSON
-                                    </button>
+                                    <>
+                                        <button className="btn btn-secondary btn-sm" onClick={() => navigator.clipboard.writeText(starkProof)}>
+                                            Copy Full JSON
+                                        </button>
+                                        <button className="btn btn-secondary btn-sm" onClick={() => {
+                                            const blob = new Blob([starkProof], { type: "application/json" });
+                                            const url = URL.createObjectURL(blob);
+                                            const a = document.createElement("a");
+                                            a.href = url;
+                                            a.download = `starkproof_${entity.id.substring(0, 8)}.json`;
+                                            document.body.appendChild(a);
+                                            a.click();
+                                            document.body.removeChild(a);
+                                            URL.revokeObjectURL(url);
+                                        }}>
+                                            Download JSON
+                                        </button>
+                                    </>
                                 )}
                                 <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()}>
                                     Upload JSON

@@ -210,6 +210,49 @@ app.post('/api/verify', async (req, res) => {
     }
 });
 
+app.get('/api/proof/:id', (req, res) => {
+    try {
+        const entityId = req.params.id;
+        console.log(`\n📡 [FETCH PROOF] Entity: ${entityId}`);
+
+        let executionsDir = path.join(CIRCUIT_DIR, 'target', 'execute', 'starkproof_circuit');
+        if (!fs.existsSync(executionsDir)) {
+            // Fallback for previous proofs before rename
+            executionsDir = path.join(CIRCUIT_DIR, 'target', 'execute', 'zkreserves_circuit');
+        }
+
+        if (!fs.existsSync(executionsDir)) {
+            return res.status(404).json({ error: "No proofs generated yet." });
+        }
+
+        const dirs = fs.readdirSync(executionsDir).filter(d => d.startsWith("execution"));
+        if (dirs.length === 0) {
+            return res.status(404).json({ error: "Proof JSON not found." });
+        }
+
+        dirs.sort((a, b) => {
+            return fs.statSync(path.join(executionsDir, b)).mtimeMs - fs.statSync(path.join(executionsDir, a)).mtimeMs;
+        });
+
+        const latestDir = dirs[0];
+        const proofPath = path.join(executionsDir, latestDir, "proof", "proof.json");
+
+        if (!fs.existsSync(proofPath)) {
+            return res.status(404).json({ error: "Proof file not found on disk." });
+        }
+
+        const bytecode = fs.readFileSync(proofPath, "utf8");
+
+        res.json({
+            success: true,
+            starkProofBytecode: bytecode
+        });
+    } catch (e) {
+        console.error('❌ [FETCH PROOF ERROR]', e);
+        res.status(500).json({ error: String(e) });
+    }
+});
+
 app.get('/health', (_, res) => res.json({
     status: 'ok',
     pipeline: 'scarb-stwo-native',

@@ -6,7 +6,7 @@ import EntityTable, { AUTHORIZED_WALLETS } from "@/components/EntityTable";
 import type { EntityRow } from "@/components/EntityTable";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ArrowPathIcon } from "@heroicons/react/24/outline";
+import { ArrowPathIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 const ProofTimeline = dynamic(() => import("@/components/charts/ProofTimeline"), { ssr: false });
 const RatioDistribution = dynamic(() => import("@/components/charts/RatioDistribution"), { ssr: false });
@@ -57,6 +57,7 @@ export default function RegistryPage() {
     const [rawEvents, setRawEvents] = useState<any[]>([]);
     const [timeline, setTimeline] = useState("5d");
     const [showAuthorizedOnly, setShowAuthorizedOnly] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         async function aggregateRealStats() {
@@ -274,6 +275,13 @@ export default function RegistryPage() {
         displayedEntities = displayedEntities.filter(e => e.registrant && AUTHORIZED_WALLETS.includes(e.registrant));
     }
 
+    if (searchQuery.trim() !== "") {
+        const query = searchQuery.toLowerCase();
+        displayedEntities = displayedEntities.filter(e =>
+            e.name.toLowerCase().includes(query) || e.id.toLowerCase().includes(query)
+        );
+    }
+
     const valid = displayedEntities.filter((e) => e.status === "Active" || e.status === "Expiring").length;
     const expired = displayedEntities.filter((e) => e.status === "Expired").length;
     const never = displayedEntities.filter((e) => e.status === "NeverProven").length;
@@ -367,15 +375,36 @@ export default function RegistryPage() {
                                     <div className="section-title">Registered Entities</div>
                                     <div className="section-desc">Click any row to view proof history</div>
                                 </div>
-                                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: "var(--text)" }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={showAuthorizedOnly}
-                                        onChange={e => setShowAuthorizedOnly(e.target.checked)}
-                                        className="custom-checkbox"
-                                    />
-                                    Only show Authorized proofs
-                                </label>
+                                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                                    <div style={{ position: "relative" }}>
+                                        <MagnifyingGlassIcon style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "var(--text-muted)" }} />
+                                        <input
+                                            type="text"
+                                            placeholder="Search Exchange / ID..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            style={{
+                                                background: "var(--surface)",
+                                                border: "1px solid var(--border)",
+                                                color: "var(--text)",
+                                                fontSize: 13,
+                                                padding: "6px 12px 6px 30px",
+                                                borderRadius: "var(--radius)",
+                                                outline: "none",
+                                                minWidth: "220px",
+                                            }}
+                                        />
+                                    </div>
+                                    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: "var(--text)" }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={showAuthorizedOnly}
+                                            onChange={e => setShowAuthorizedOnly(e.target.checked)}
+                                            className="custom-checkbox"
+                                        />
+                                        Authorized only
+                                    </label>
+                                </div>
                             </div>
                             <EntityTable entities={displayedEntities} loading={loading} />
                         </div>

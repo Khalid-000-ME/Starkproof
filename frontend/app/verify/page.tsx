@@ -237,15 +237,31 @@ export default function VerifyPage() {
                         </div>
 
                         <div className="card card-lg mb-6">
-                            <div className="section-title flex justify-between items-center mb-4 w-full">
-                                <div className="flex items-center gap-2">
-                                    <DocumentTextIcon style={{ width: 16, height: 16 }} /> STARK Proof Bytecode
+                            <div className="section-title flex justify-between items-center mb-4 w-full flex-wrap" style={{ gap: "12px" }}>
+                                <div className="flex items-center gap-2" style={{ whiteSpace: "nowrap", flexShrink: 0 }}>
+                                    <DocumentTextIcon style={{ width: 16, height: 16, flexShrink: 0 }} /> STARK Proof Bytecode
                                 </div>
-                                <div style={{ display: "flex", gap: "8px" }}>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                                     {starkProof.length > 0 && (
-                                        <button className="btn btn-secondary btn-sm" onClick={() => navigator.clipboard.writeText(starkProof)}>
-                                            Copy Full JSON
-                                        </button>
+                                        <>
+                                            <button className="btn btn-secondary btn-sm" onClick={() => navigator.clipboard.writeText(starkProof)}>
+                                                Copy Full JSON
+                                            </button>
+                                            <button className="btn btn-secondary btn-sm" onClick={() => {
+                                                const blob = new Blob([starkProof], { type: "application/json" });
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement("a");
+                                                a.href = url;
+                                                const rawId = entityIdForFetch || "manual";
+                                                a.download = `starkproof_${rawId.length > 10 ? rawId.substring(0, 8) : rawId}.json`;
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                document.body.removeChild(a);
+                                                URL.revokeObjectURL(url);
+                                            }}>
+                                                Download JSON
+                                            </button>
+                                        </>
                                     )}
                                     <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()}>
                                         Upload JSON

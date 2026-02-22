@@ -1,41 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+
+
+export const dynamic = "force-dynamic";
+
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
         const idParam = id.toLowerCase();
-        // since proof_logs.json is removed for privacy, just pull the latest stark proof from local fs
-        // normally an entity would expose this via their own static site
-        const executionsDir = path.join(process.cwd(), "..", "circuit", "target", "execute", "starkproof_circuit");
-        if (!fs.existsSync(executionsDir)) {
-            return NextResponse.json({ error: "No proofs generated yet." }, { status: 404 });
+        const target = `${process.env.PROVER_API_URL || "http://localhost:8080"}/api/proof/${idParam}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+        const res = await fetch(target, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            return NextResponse.json({ error: data.error || "Failed to fetch proof from prover API." }, { status: res.status });
         }
 
-        const dirs = fs.readdirSync(executionsDir).filter(d => d.startsWith("execution"));
-        if (dirs.length === 0) {
-            return NextResponse.json({ error: "Proof JSON not found." }, { status: 404 });
-        }
-
-        // Sort by modified time descending
-        dirs.sort((a, b) => {
-            return fs.statSync(path.join(executionsDir, b)).mtimeMs - fs.statSync(path.join(executionsDir, a)).mtimeMs;
-        });
-
-        const latestDir = dirs[0];
-        const proofPath = path.join(executionsDir, latestDir, "proof", "proof.json");
-
-        if (!fs.existsSync(proofPath)) {
-            return NextResponse.json({ error: "Proof file not found on disk." }, { status: 404 });
-        }
-
-        const bytecode = fs.readFileSync(proofPath, "utf8");
-
-        return NextResponse.json({
-            success: true,
-            starkProofBytecode: bytecode
-        });
+        const data = await res.json();
+        return NextResponse.json(data);
     } catch (e) {
         return NextResponse.json({ error: String(e) }, { status: 500 });
     }

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useAccount, useDisconnect, useConnect } from "@starknet-react/core";
 import { useStarknetkitConnectModal } from "starknetkit";
@@ -23,7 +24,9 @@ export default function Navbar() {
     const { connect, connectors } = useConnect();
     const uniqueConnectors = connectors.filter((c, idx, arr) => arr.findIndex(x => x.id === c.id) === idx);
     const { starknetkitConnectModal } = useStarknetkitConnectModal({
-        connectors: uniqueConnectors as any[]
+        connectors: uniqueConnectors as any[],
+        modalTheme: "dark",
+        modalMode: "alwaysAsk"
     });
 
     const isLanding = pathname === "/";
@@ -83,6 +86,13 @@ export default function Navbar() {
                     ) : (
                         <button
                             onClick={async () => {
+                                disconnect();
+                                try {
+                                    localStorage.removeItem("starknetkit-last-wallet-id");
+                                    localStorage.removeItem("starknetLastConnectedWallet");
+                                    localStorage.removeItem("walletconnect");
+                                } catch (e) { }
+
                                 const { connector } = await starknetkitConnectModal();
                                 if (connector) {
                                     connect({ connector });

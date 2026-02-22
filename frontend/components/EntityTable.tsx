@@ -95,7 +95,7 @@ export default function EntityTable({ entities, loading }: Props) {
                             <th>Entity Name</th>
                             <th>Status (Aggregated)</th>
                             <th>Proof Details</th>
-                            <th>Assets Covered</th>
+                            <th style={{ padding: "0 24px", minWidth: "150px" }}>Assets Covered</th>
                             <th>Total Proofs Submitted</th>
                         </tr>
                     </thead>
@@ -134,7 +134,7 @@ export default function EntityTable({ entities, loading }: Props) {
                                             </td>
                                             <td><ProofStatusBadge status={aggStatus} /></td>
                                             <td><span className="text-muted text-sm">{bandSummary}</span></td>
-                                            <td><span className="mono-sm text-dim">{g.children.length} assets</span></td>
+                                            <td style={{ padding: "0 24px", minWidth: "150px" }}><span className="mono-sm text-dim">{g.children.length} assets</span></td>
                                             <td><span className="mono-sm text-muted">{totalSubmits}</span></td>
                                         </tr>
                                     ) : (
@@ -160,7 +160,7 @@ export default function EntityTable({ entities, loading }: Props) {
                                                     <span className="mono-sm text-dim">Block #{Number(g.children[0].blockHeight).toLocaleString()}</span>
                                                 </div>
                                             </td>
-                                            <td>
+                                            <td style={{ padding: "0 24px", minWidth: "150px" }}>
                                                 {g.children[0].status === "NeverProven" ? <span className="text-muted">—</span> : <span className="text-muted text-sm px-2">Proven {formatRelativeTime(g.children[0].proofTimestamp)}</span>}
                                             </td>
                                             <td><span className="mono-sm text-muted">{totalSubmits}</span></td>
@@ -190,7 +190,7 @@ export default function EntityTable({ entities, loading }: Props) {
                                                         {c.status === "NeverProven" ? <span className="text-muted">—</span> : <ReserveRatioBand band={c.band} size="sm" />}
                                                     </div>
                                                 </td>
-                                                <td>
+                                                <td style={{ padding: "0 24px", minWidth: "150px" }}>
                                                     {c.status === "NeverProven" ? <span className="text-muted">—</span> : <span className="text-muted text-sm px-2">Proven <span className="mono-sm text-dim">Block #{Number(c.blockHeight).toLocaleString()}</span></span>}
                                                 </td>
                                                 <td><span className="mono-sm text-muted">{c.submissionCount}</span></td>

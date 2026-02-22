@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { StarknetProvider } from "@/components/StarknetProvider";
+import ProverStatus from "@/components/ProverStatus";
 
 export const metadata: Metadata = {
     title: "Starkproof — Private Proof of Solvency on Starknet",
@@ -23,6 +24,7 @@ export default function RootLayout({
             </head>
             <body style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                 <StarknetProvider>
+                    <ProverStatus />
                     <Navbar />
                     {children}
                 </StarknetProvider>
