@@ -4,6 +4,7 @@ import { useAccount, useConnect, useDisconnect, useSendTransaction } from "@star
 import { computeEntityId, stringToFelt252, computeLiabilityRoot } from "@/lib/merkle";
 import { satoshiToBTC, getMultipleBalances, getCurrentBlockHeight } from "@/lib/xverse";
 import { generateProof, type ProofGenerationProgress } from "@/lib/circuit";
+import { TokenBTC, TokenETH, TokenUSDC, TokenSOL } from "@web3icons/react";
 import { REGISTRY_ADDRESS } from "@/lib/starknet";
 import Link from "next/link";
 import {
@@ -17,6 +18,17 @@ import {
     ArrowUpTrayIcon,
     InformationCircleIcon,
 } from "@heroicons/react/24/outline";
+
+const getTokenIcon = (symbol: string) => {
+    switch (symbol.toUpperCase()) {
+        case "BTC": return <TokenBTC size={22} />;
+        case "ETH": return <TokenETH size={22} />;
+        case "USDC": return <TokenUSDC size={22} />;
+        case "STRK": return <img src="/download.svg" style={{ width: 22, height: 22 }} alt="STRK" />;
+        case "SOL": return <TokenSOL size={22} />;
+        default: return <CurrencyDollarIcon style={{ width: 22, height: 22, color: "var(--accent)" }} />;
+    }
+};
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -86,9 +98,20 @@ export default function OnboardPage() {
         setLoading(true);
         try {
             if (assetType === "BTC") {
-                const addrs = entries.map(e => e.address.trim());
-                const isTestnet = addrs.every(a => a.startsWith("tb1") || a.startsWith("m") || a.startsWith("n"));
-                const [bals, height] = await Promise.all([getMultipleBalances(addrs), getCurrentBlockHeight(isTestnet)]);
+                const btcEntries = entries.map(e => ({ address: e.address.trim(), network: e.network }));
+
+                // Get balances
+                const bals = await getMultipleBalances(btcEntries);
+
+                // Get block height from the "most mainnet-like" network in the batch
+                // Fallback: Testnet < Signet < Bitcoin
+                let bestNetwork = "testnet4";
+                if (btcEntries.some(e => e.network === "bitcoin")) bestNetwork = "bitcoin";
+                else if (btcEntries.some(e => e.network === "signet")) bestNetwork = "signet";
+                else if (btcEntries.some(e => e.network === "testnet")) bestNetwork = "testnet";
+
+                const height = await getCurrentBlockHeight(bestNetwork);
+
                 setBalances(bals);
                 setBlockHeight(height);
             } else if (assetType === "ETH" || assetType === "USDC") {
@@ -125,6 +148,40 @@ export default function OnboardPage() {
                         const bal = await contract.balanceOf(entry.address);
                         const num = Number(ethers.utils.formatUnits(bal, 6));
                         realBalances.push({ address: entry.address, balance: Math.floor(num * 100000000), satoshi: Math.floor(num * 100000000) });
+                    }
+                }
+
+                setBlockHeight(maxBlockHeight);
+                setBalances(realBalances);
+            } else if (assetType === "STRK") {
+                const { RpcProvider } = await import("starknet");
+                const STRK_ADDRESS = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
+                const provider = new RpcProvider({ nodeUrl: "https://api.cartridge.gg/x/starknet/sepolia" });
+
+                let realBalances = [];
+                const maxBlockHeight = await provider.getBlockNumber();
+
+                for (const entry of entries) {
+                    try {
+                        let address = entry.address.trim().toLowerCase();
+                        if (!address.startsWith("0x")) address = "0x" + address;
+
+                        const res = await provider.callContract({
+                            contractAddress: STRK_ADDRESS,
+                            entrypoint: "balanceOf",
+                            calldata: [address]
+                        });
+
+                        // uint256 is [low, high]. STRK has 18 decimals
+                        const numStrk = Number(BigInt(res[0])) / 1e18;
+                        realBalances.push({
+                            address: entry.address,
+                            balance: Math.floor(numStrk * 100000000),
+                            satoshi: Math.floor(numStrk * 100000000)
+                        });
+                    } catch (err) {
+                        console.error("STRK fetch error for", entry.address, err);
+                        realBalances.push({ address: entry.address, balance: 0, satoshi: 0 });
                     }
                 }
 
@@ -365,7 +422,7 @@ export default function OnboardPage() {
                 {step === 3 && (
                     <div className="card card-lg">
                         <div className="flex items-center gap-3 mb-4">
-                            <CurrencyDollarIcon style={{ width: 22, height: 22, color: "var(--accent)" }} />
+                            {getTokenIcon(assetType)}
                             <h2 style={{ fontSize: 16, fontWeight: 600 }}>Add your wallet addresses</h2>
                         </div>
                         <p className="text-muted mb-4" style={{ fontSize: 13, lineHeight: 1.7 }}>
@@ -374,24 +431,58 @@ export default function OnboardPage() {
 
                         <div className="field mb-4">
                             <label className="label">Select Digital Asset</label>
-                            <select className="input input-mono" value={assetType} onChange={e => setAssetType(e.target.value)} style={{ appearance: "auto", paddingRight: 32 }}>
-                                <option value="BTC">Bitcoin (BTC) - via Xverse API</option>
-                                <option value="ETH">Ethereum (ETH) - Live Fetching</option>
-                                <option value="USDC">USD Coin (USDC) - Live Fetching</option>
-                                <option value="SOL">Solana (SOL) - Mocked</option>
-                            </select>
+                            <div className="flex items-center gap-3">
+                                <div style={{ minWidth: "22px" }}>{getTokenIcon(assetType)}</div>
+                                <select className="input input-mono w-full" value={assetType} onChange={e => setAssetType(e.target.value)} style={{ appearance: "auto", paddingRight: 32 }}>
+                                    <option value="BTC">Bitcoin (BTC) - via Xverse API</option>
+                                    <option value="ETH">Ethereum (ETH) - Live Fetching</option>
+                                    <option value="USDC">USD Coin (USDC) - Live Fetching</option>
+                                    <option value="STRK">Starknet (STRK) - Live Fetching</option>
+                                    <option value="SOL">Solana (SOL) - Mocked</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div className="field mb-4">
                             <div className="flex items-center justify-between mb-2">
                                 <label className="label" style={{ marginBottom: 0 }}>Wallet Addresses ({assetType})</label>
+                                <div>
+                                    <input
+                                        type="file"
+                                        accept=".csv,.txt"
+                                        style={{ display: "none" }}
+                                        id="walletCsvUpload"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            const reader = new FileReader();
+                                            reader.onload = (ev) => {
+                                                const text = ev.target?.result as string;
+                                                if (!text) return;
+                                                const lines = text.split("\n").filter(l => l.trim() && !l.toLowerCase().startsWith("address"));
+                                                const parsed = lines.map(l => {
+                                                    const parts = l.split(",");
+                                                    const address = parts[0]?.trim() || "";
+                                                    const network = parts[1]?.trim() || (assetType === "BTC" ? "bitcoin" : "ethereum_sepolia");
+                                                    return { address, network };
+                                                }).filter(entry => entry.address);
+                                                if (parsed.length > 0) setAddressEntries(parsed);
+                                                e.target.value = ""; // Reset
+                                            };
+                                            reader.readAsText(file);
+                                        }}
+                                    />
+                                    <label htmlFor="walletCsvUpload" className="btn btn-secondary btn-sm" style={{ cursor: "pointer", fontSize: 11, padding: "4px 8px" }}>
+                                        <ArrowUpTrayIcon style={{ width: 12, height: 12 }} /> Upload CSV
+                                    </label>
+                                </div>
                             </div>
 
                             {addressEntries.map((entry, idx) => (
                                 <div key={idx} className="flex gap-2 mb-2">
                                     <input
                                         className="input input-mono w-full"
-                                        placeholder={(assetType === "ETH" || assetType === "USDC") ? "0x123..." : "bc1qxxx..."}
+                                        placeholder={(assetType === "ETH" || assetType === "USDC" || assetType === "STRK") ? "0x123..." : "bc1qxxx..."}
                                         value={entry.address}
                                         onChange={(e) => {
                                             const newEntries = [...addressEntries];
@@ -399,7 +490,7 @@ export default function OnboardPage() {
                                             setAddressEntries(newEntries);
                                         }}
                                     />
-                                    {(assetType === "ETH" || assetType === "USDC") && (
+                                    {assetType !== "SOL" && (
                                         <select
                                             className="input input-mono"
                                             value={entry.network}
@@ -410,9 +501,24 @@ export default function OnboardPage() {
                                             }}
                                             style={{ appearance: "auto", minWidth: 160 }}
                                         >
-                                            <option value="ethereum_sepolia">Eth Sepolia</option>
-                                            <option value="base_sepolia">Base Sepolia</option>
-                                            <option value="arbitrum_sepolia">Arb Sepolia</option>
+                                            {(assetType === "ETH" || assetType === "USDC") ? (
+                                                <>
+                                                    <option value="ethereum_sepolia">Eth Sepolia</option>
+                                                    <option value="base_sepolia">Base Sepolia</option>
+                                                    <option value="arbitrum_sepolia">Arb Sepolia</option>
+                                                </>
+                                            ) : assetType === "BTC" ? (
+                                                <>
+                                                    <option value="bitcoin">Bitcoin</option>
+                                                    <option value="signet">Signet</option>
+                                                    <option value="testnet">Testnet</option>
+                                                    <option value="testnet4">Testnet4</option>
+                                                </>
+                                            ) : assetType === "STRK" ? (
+                                                <>
+                                                    <option value="starknet_sepolia">Starknet Sepolia</option>
+                                                </>
+                                            ) : null}
                                         </select>
                                     )}
                                     <button

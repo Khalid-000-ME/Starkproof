@@ -23,26 +23,6 @@ export async function POST(req: NextRequest) {
         console.log("\nIf you submitted an on-chain transaction, the hash will appear in your wallet.");
         console.log("=".repeat(60) + "\n");
 
-        // Write to local JSON log for persistence (so auditor can fetch it if we needed to build an endpoint for it)
-        const logFilePath = path.join(process.cwd(), "proof_logs.json");
-        let logs: any[] = [];
-        try {
-            if (fs.existsSync(logFilePath)) {
-                logs = JSON.parse(fs.readFileSync(logFilePath, "utf8"));
-            }
-        } catch (e) { }
-
-        const logEntry = {
-            timestamp_logged: new Date().toISOString(),
-            ...body
-        };
-        // Remove the massive bytecode from the local log array to avoid memory bloat
-        if (logEntry.starkProofBytecode) delete logEntry.starkProofBytecode;
-
-        logs.push(logEntry);
-
-        fs.writeFileSync(logFilePath, JSON.stringify(logs, null, 2));
-
         return NextResponse.json({ success: true, logged: true });
     } catch (e) {
         return NextResponse.json({ success: false, error: String(e) }, { status: 500 });

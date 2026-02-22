@@ -6,6 +6,17 @@ import ReserveRatioBand from "./ReserveRatioBand";
 import ProofCountdown from "./ProofCountdown";
 import { formatRelativeTime } from "@/lib/starknet";
 import { ChevronDownIcon, ChevronUpIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
+import { TokenBTC, TokenETH, TokenUSDC, TokenSOL } from "@web3icons/react";
+
+const getTokenIcon = (symbol: string) => {
+    switch (symbol.toUpperCase()) {
+        case "BTC": return <TokenBTC size={16} />;
+        case "ETH": return <TokenETH size={16} />;
+        case "USDC": return <TokenUSDC size={16} />;
+        case "SOL": return <TokenSOL size={16} />;
+        default: return null;
+    }
+};
 
 export const AUTHORIZED_WALLETS = ["0x044bee7bb2e611f5d0d10026ec411bf0617ac9d58b640ff5587f2a163c117b6d"];
 
@@ -136,6 +147,7 @@ export default function EntityTable({ entities, loading }: Props) {
                                                         {g.registrant && AUTHORIZED_WALLETS.includes(g.registrant) && <CheckCircleIcon style={{ width: 14, height: 14, color: "var(--green)" }} title="Verified Authorized Wallet" />}
                                                     </div>
                                                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                                                        {getTokenIcon(g.children[0].name.split("|")[1] || "BTC")}
                                                         <span style={{ color: "var(--green)", fontWeight: 500, fontSize: 13 }}>{g.children[0].name.split("|")[1] || "BTC"}</span>
                                                         <span style={{ color: "var(--text-dim)", fontSize: 11 }}>{g.children[0].name.split("|")[2] || "Bitcoin"}</span>
                                                     </div>
@@ -165,7 +177,10 @@ export default function EntityTable({ entities, loading }: Props) {
                                             <tr key={c.id} style={{ background: "rgba(0,0,0,0.2)" }}>
                                                 <td style={{ paddingLeft: 32 }}>
                                                     <Link href={`/entity/${c.id}`} style={{ display: "flex", flexDirection: "column", textDecoration: "none" }}>
-                                                        <span style={{ color: "var(--green)", fontWeight: 500, fontSize: 13 }}>{tokenName}</span>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                                            {getTokenIcon(tokenName)}
+                                                            <span style={{ color: "var(--green)", fontWeight: 500, fontSize: 13 }}>{tokenName}</span>
+                                                        </div>
                                                         <span style={{ color: "var(--text-dim)", fontSize: 11 }}>{networkName}</span>
                                                     </Link>
                                                 </td>

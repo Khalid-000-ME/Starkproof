@@ -80,6 +80,12 @@ export default function LandingPage() {
                 paddingBottom: 80,
                 borderBottom: "1px solid var(--border-subtle)",
             }}>
+                <style>{`
+                    @keyframes grainientFadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 0.30; }
+                    }
+                `}</style>
                 {/* Grainient Background Effect */}
                 <div style={{
                     position: "absolute",
@@ -89,7 +95,8 @@ export default function LandingPage() {
                     height: "100%",
                     pointerEvents: "none",
                     zIndex: 0,
-                    opacity: 0.25,
+                    opacity: 0,
+                    animation: "grainientFadeIn 0.5s ease-in-out forwards",
                     maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
                     WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)"
                 }}>

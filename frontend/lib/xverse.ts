@@ -114,12 +114,20 @@ async function xverseMainnetUTXOs(address: string): Promise<UTXO[] | null> {
     }
 }
 
-// ── mempool.space testnet4 (supplement for testnet addresses) ─────────────────
+// ── mempool.space networks (supplement for testnet addresses) ─────────────────
 
-async function mempoolT4Balance(address: string): Promise<AddressBalance | null> {
+async function mempoolBalance(address: string, network: string): Promise<AddressBalance | null> {
     try {
+        const baseUrl = network === "signet"
+            ? "https://mempool.space/signet/api"
+            : network === "testnet"
+                ? "https://mempool.space/testnet/api"
+                : network === "testnet4"
+                    ? "https://mempool.space/testnet4/api"
+                    : "https://mempool.space/api";
+
         const res = await fetch(
-            `https://mempool.space/testnet4/api/address/${address}`,
+            `${baseUrl}/address/${address}`,
             { signal: AbortSignal.timeout(10000) }
         );
         if (!res.ok) return null;
@@ -168,15 +176,15 @@ async function mempoolT4UTXOs(address: string): Promise<UTXO[]> {
  *
  * The Xverse API is always attempted first, making this a genuine Xverse integration.
  */
-export async function getAddressBalance(address: string): Promise<AddressBalance> {
-    const testnet = isTestnetAddress(address);
+export async function getAddressBalance(address: string, network: string = "bitcoin"): Promise<AddressBalance> {
+    const testnet = network !== "bitcoin";
 
     // Always try Xverse mainnet API first (works for mainnet; for testnet will return 0 but proves integration)
     const fromXverse = await xverseMainnetBalance(address);
     if (fromXverse) {
-        // For testnet addresses where Xverse mainnet returned 0, supplement with real testnet4 data
+        // For testnet addresses where Xverse mainnet returned 0, supplement with real testnet/signet data
         if (testnet && fromXverse.balance === 0) {
-            const fromMempool = await mempoolT4Balance(address);
+            const fromMempool = await mempoolBalance(address, network);
             if (fromMempool && fromMempool.balance > 0) return fromMempool;
         }
         return fromXverse;
@@ -184,7 +192,7 @@ export async function getAddressBalance(address: string): Promise<AddressBalance
 
     // Fallback: mempool.space for testnet, mock for mainnet
     if (testnet) {
-        const fromMempool = await mempoolT4Balance(address);
+        const fromMempool = await mempoolBalance(address, network);
         if (fromMempool) return fromMempool;
     }
 
@@ -194,10 +202,10 @@ export async function getAddressBalance(address: string): Promise<AddressBalance
 /**
  * Fetch balances for multiple addresses in parallel.
  */
-export async function getMultipleBalances(addresses: string[]): Promise<AddressBalance[]> {
-    const results = await Promise.allSettled(addresses.map(getAddressBalance));
+export async function getMultipleBalances(entries: Array<{ address: string, network: string }>): Promise<AddressBalance[]> {
+    const results = await Promise.allSettled(entries.map(e => getAddressBalance(e.address, e.network)));
     return results.map((r, i) =>
-        r.status === "fulfilled" ? r.value : getMockBalance(addresses[i])
+        r.status === "fulfilled" ? r.value : getMockBalance(entries[i].address)
     );
 }
 
@@ -214,15 +222,20 @@ export async function getAddressUTXOs(address: string): Promise<UTXO[]> {
 /**
  * Get current Bitcoin block height.
  */
-export async function getCurrentBlockHeight(testnet = false): Promise<number> {
+export async function getCurrentBlockHeight(network: string = "bitcoin"): Promise<number> {
     try {
-        const url = testnet
-            ? "https://mempool.space/testnet4/api/blocks/tip/height"
-            : "https://mempool.space/api/blocks/tip/height";
-        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        const baseUrl = network === "signet"
+            ? "https://mempool.space/signet/api"
+            : network === "testnet"
+                ? "https://mempool.space/testnet/api"
+                : network === "testnet4"
+                    ? "https://mempool.space/testnet4/api"
+                    : "https://mempool.space/api";
+
+        const res = await fetch(`${baseUrl}/blocks/tip/height`, { signal: AbortSignal.timeout(8000) });
         if (res.ok) return parseInt(await res.text(), 10);
     } catch { /* fall through */ }
-    return testnet ? 3_800_000 : 880_412;
+    return network !== "bitcoin" ? 3_800_000 : 880_412;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

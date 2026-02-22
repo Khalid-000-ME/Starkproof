@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAccount, useDisconnect } from "@starknet-react/core";
+import { useAccount, useDisconnect, useConnect } from "@starknet-react/core";
 import {
     ChartBarIcon,
     ShieldCheckIcon,
@@ -19,6 +19,7 @@ export default function Navbar() {
     const pathname = usePathname();
     const { address, isConnected } = useAccount();
     const { disconnect } = useDisconnect();
+    const { connect, connectors } = useConnect();
 
     const isLanding = pathname === "/";
 
@@ -75,13 +76,18 @@ export default function Navbar() {
                             </button>
                         </div>
                     ) : (
-                        <Link
-                            href={isLanding ? "/onboard" : "/onboard"}
+                        <button
+                            onClick={() => {
+                                if (connectors && connectors.length > 0) {
+                                    // Use the first available connector (usually ArgentX or Braavos)
+                                    connect({ connector: connectors[0] });
+                                }
+                            }}
                             className="btn btn-primary btn-sm"
                         >
                             <WalletIcon style={{ width: 14, height: 14 }} />
-                            {isLanding ? "Register Exchange" : "Connect"}
-                        </Link>
+                            {isLanding ? "Connect & Register" : "Connect Wallet"}
+                        </button>
                     )}
                 </div>
             </div>

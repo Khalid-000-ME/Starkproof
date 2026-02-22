@@ -56,7 +56,7 @@ export default function RegistryPage() {
 
     const [rawEvents, setRawEvents] = useState<any[]>([]);
     const [timeline, setTimeline] = useState("5d");
-    const [showAuthorizedOnly, setShowAuthorizedOnly] = useState(false);
+    const [showAuthorizedOnly, setShowAuthorizedOnly] = useState(true);
 
     useEffect(() => {
         async function aggregateRealStats() {
@@ -65,9 +65,9 @@ export default function RegistryPage() {
 
                 const eventKey = hash.getSelectorFromName("ProofSubmitted");
 
-                // Scan the last ~50k blocks to avoid RPC timeouts
+                // Scan the last ~500k blocks to get deeper timeline history 
                 const currentBlock = await provider.getBlockNumber();
-                const fromBlock = Math.max(0, currentBlock - 50000);
+                const fromBlock = Math.max(0, currentBlock - 500000);
 
                 let allEvents: any[] = [];
                 let continuationToken: string | undefined = undefined;
@@ -109,7 +109,7 @@ export default function RegistryPage() {
             return decoded.trim() || "Unknown";
         }
 
-        async function fetchLiveEntities() {
+        async function fetchLiveEntities(forceRefresh = false) {
             try {
                 if (!REGISTRY_ADDRESS || REGISTRY_ADDRESS === "0x0" || REGISTRY_ADDRESS === "") {
                     setEntities(DEMO_ENTITIES);
@@ -120,7 +120,7 @@ export default function RegistryPage() {
                 const cacheTime = sessionStorage.getItem("registry_entities_cache_time");
                 const now = Date.now();
 
-                if (cached && cacheTime && now - Number(cacheTime) < 60000) { // 1 min cache
+                if (cached) {
                     const parsed = JSON.parse(cached).map((e: any) => ({
                         ...e,
                         blockHeight: BigInt(e.blockHeight),
@@ -129,7 +129,7 @@ export default function RegistryPage() {
                     }));
                     setEntities(parsed);
                     setLoading(false);
-                    return;
+                    if (!forceRefresh) return;
                 }
 
                 const countRes = await callContract("get_entity_count");
@@ -193,10 +193,8 @@ export default function RegistryPage() {
             }
         }
 
-        fetchRef.current = fetchLiveEntities;
+        fetchRef.current = () => fetchLiveEntities(true);
         fetchLiveEntities();
-        const interval = setInterval(fetchLiveEntities, 30_000);
-        return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
@@ -205,38 +203,41 @@ export default function RegistryPage() {
         const nowSec = Math.floor(Date.now() / 1000);
         let buckets: { start: number, end: number, date: string, count: number }[] = [];
 
+        const dNow = new Date();
+        const startOfDay = new Date(dNow.getFullYear(), dNow.getMonth(), dNow.getDate()).getTime() / 1000;
+
         if (timeline === "today") {
-            // Show last 24 hours in 4-hour buckets
+            // Show today in 4-hour buckets
             buckets = Array.from({ length: 6 }, (_, i) => {
-                const start = nowSec - (5 - i) * 14400; // 4 hours in seconds
+                const start = startOfDay + i * 14400; // 4 hours in seconds
                 const d = new Date(start * 1000);
                 return { start, end: start + 14400, date: `${d.getHours()}:00`, count: 0 };
             });
         } else if (timeline === "5d") {
             // Last 5 days, bucket by day
             buckets = Array.from({ length: 5 }, (_, i) => {
-                const start = nowSec - (4 - i) * 86400; // 24 hours
+                const start = startOfDay - (4 - i) * 86400; // 24 hours
                 const d = new Date(start * 1000);
                 return { start, end: start + 86400, date: `${d.getDate()}/${d.getMonth() + 1}`, count: 0 };
             });
         } else if (timeline === "1w") {
             // Last 7 days, bucket by day
             buckets = Array.from({ length: 7 }, (_, i) => {
-                const start = nowSec - (6 - i) * 86400;
+                const start = startOfDay - (6 - i) * 86400;
                 const d = new Date(start * 1000);
                 return { start, end: start + 86400, date: `${d.getDate()}/${d.getMonth() + 1}`, count: 0 };
             });
         } else if (timeline === "1m") {
-            // Last 4 weeks, bucket by week
+            // Last 4 weeks, bucket by week back from today
             buckets = Array.from({ length: 4 }, (_, i) => {
-                const start = nowSec - (3 - i) * 604800;
+                const start = startOfDay - (3 - i) * 604800;
                 const d = new Date(start * 1000);
                 return { start, end: start + 604800, date: `${d.getDate()}/${d.getMonth() + 1}`, count: 0 };
             });
         } else if (timeline === "2m") {
-            // Last 8 weeks, bucket by week
+            // Last 8 weeks, bucket by week back from today
             buckets = Array.from({ length: 8 }, (_, i) => {
-                const start = nowSec - (7 - i) * 604800;
+                const start = startOfDay - (7 - i) * 604800;
                 const d = new Date(start * 1000);
                 return { start, end: start + 604800, date: `${d.getDate()}/${d.getMonth() + 1}`, count: 0 };
             });
@@ -359,68 +360,70 @@ export default function RegistryPage() {
                         </div>
                     </div>
 
-                    <div className="mt-8">
-                        <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div>
-                                <div className="section-title">Registered Entities</div>
-                                <div className="section-desc">Click any row to view proof history</div>
-                            </div>
-                            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: "var(--text)" }}>
-                                <input
-                                    type="checkbox"
-                                    checked={showAuthorizedOnly}
-                                    onChange={e => setShowAuthorizedOnly(e.target.checked)}
-                                    style={{ width: 16, height: 16, accentColor: "var(--green)", cursor: "pointer" }}
-                                />
-                                Only show Authorized proofs
-                            </label>
-                        </div>
-                        <EntityTable entities={displayedEntities} loading={loading} />
-                    </div>
-
-                    <div className="grid-2 mt-6" style={{ gap: 16 }}>
-                        <div className="card" style={{ padding: "24px", display: "flex", flexDirection: "column" }}>
-                            <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 0 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: "24px", marginTop: "48px", alignItems: "start" }}>
+                        <div>
+                            <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <div>
-                                    <div className="section-title">Proof Submissions</div>
+                                    <div className="section-title">Registered Entities</div>
+                                    <div className="section-desc">Click any row to view proof history</div>
                                 </div>
-                                <select
-                                    value={timeline}
-                                    onChange={(e) => setTimeline(e.target.value)}
-                                    style={{
-                                        background: "var(--surface)",
-                                        border: "1px solid var(--border)",
-                                        color: "var(--text-muted)",
-                                        fontSize: 12,
-                                        padding: "4px 8px",
-                                        borderRadius: "var(--radius)",
-                                        outline: "none",
-                                        cursor: "pointer",
-                                        marginLeft: "auto"
-                                    }}
-                                >
-                                    <option value="today">Today</option>
-                                    <option value="5d">Last 5 days</option>
-                                    <option value="1w">This week</option>
-                                    <option value="1m">This month</option>
-                                    <option value="2m">Last 2 months</option>
-                                </select>
+                                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: "var(--text)" }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={showAuthorizedOnly}
+                                        onChange={e => setShowAuthorizedOnly(e.target.checked)}
+                                        className="custom-checkbox"
+                                    />
+                                    Only show Authorized proofs
+                                </label>
                             </div>
-                            <div style={{ flex: 1, minHeight: 180, marginTop: 16 }}>
-                                <ProofTimeline data={stats?.proof_history_30d ?? []} />
-                            </div>
+                            <EntityTable entities={displayedEntities} loading={loading} />
                         </div>
-                        <div className="card" style={{ padding: "24px", display: "flex", flexDirection: "column" }}>
-                            <div className="section-header">
-                                <div className="section-title">Reserve Band Distribution</div>
-                                <div className="section-desc">Active proofs only</div>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                            <div className="card" style={{ padding: "24px", display: "flex", flexDirection: "column" }}>
+                                <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 0 }}>
+                                    <div>
+                                        <div className="section-title">Proof Submissions</div>
+                                    </div>
+                                    <select
+                                        value={timeline}
+                                        onChange={(e) => setTimeline(e.target.value)}
+                                        style={{
+                                            background: "var(--surface)",
+                                            border: "1px solid var(--border)",
+                                            color: "var(--text-muted)",
+                                            fontSize: 12,
+                                            padding: "4px 8px",
+                                            borderRadius: "var(--radius)",
+                                            outline: "none",
+                                            cursor: "pointer",
+                                            marginLeft: "auto"
+                                        }}
+                                    >
+                                        <option value="today">Today</option>
+                                        <option value="5d">Last 5 days</option>
+                                        <option value="1w">This week</option>
+                                        <option value="1m">This month</option>
+                                        <option value="2m">Last 2 months</option>
+                                    </select>
+                                </div>
+                                <div style={{ flex: 1, minHeight: 180, marginTop: 16 }}>
+                                    <ProofTimeline data={stats?.proof_history_30d ?? []} />
+                                </div>
                             </div>
-                            <div style={{ flex: 1, minHeight: 180, marginTop: 16 }}>
-                                <RatioDistribution data={[
-                                    { band: 1, count: bandDistComputed[1] },
-                                    { band: 2, count: bandDistComputed[2] },
-                                    { band: 3, count: bandDistComputed[3] }
-                                ]} />
+                            <div className="card" style={{ padding: "24px", display: "flex", flexDirection: "column" }}>
+                                <div className="section-header">
+                                    <div className="section-title">Reserve Band Distribution</div>
+                                    <div className="section-desc">Active proofs only</div>
+                                </div>
+                                <div style={{ flex: 1, minHeight: 180, marginTop: 16 }}>
+                                    <RatioDistribution data={[
+                                        { band: 1, count: bandDistComputed[1] },
+                                        { band: 2, count: bandDistComputed[2] },
+                                        { band: 3, count: bandDistComputed[3] }
+                                    ]} />
+                                </div>
                             </div>
                         </div>
                     </div>

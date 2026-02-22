@@ -6,44 +6,31 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     try {
         const { id } = await params;
         const idParam = id.toLowerCase();
-        const logFilePath = path.join(process.cwd(), "proof_logs.json");
-
-        if (!fs.existsSync(logFilePath)) {
+        // since proof_logs.json is removed for privacy, just pull the latest stark proof from local fs
+        // normally an entity would expose this via their own static site
+        const executionsDir = path.join(process.cwd(), "..", "circuit", "target", "execute", "zkreserves_circuit");
+        if (!fs.existsSync(executionsDir)) {
             return NextResponse.json({ error: "No proofs generated yet." }, { status: 404 });
         }
 
-        const logs = JSON.parse(fs.readFileSync(logFilePath, "utf8"));
+        const dirs = fs.readdirSync(executionsDir).filter(d => d.startsWith("execution"));
+        if (dirs.length === 0) {
+            return NextResponse.json({ error: "Proof JSON not found." }, { status: 404 });
+        }
 
-        // Find the most recent log matching the entityId
-        let normalizedParam = idParam;
-        try {
-            normalizedParam = "0x" + BigInt(idParam).toString(16);
-        } catch (e) { }
-
-        const entityLogs = logs.filter((l: any) => {
-            if (!l.publicInputs?.entityId) return false;
-            try {
-                const normLog = "0x" + BigInt(l.publicInputs.entityId).toString(16);
-                return normLog === normalizedParam;
-            } catch (e) {
-                return l.publicInputs.entityId.toLowerCase() === idParam;
-            }
+        // Sort by modified time descending
+        dirs.sort((a, b) => {
+            return fs.statSync(path.join(executionsDir, b)).mtimeMs - fs.statSync(path.join(executionsDir, a)).mtimeMs;
         });
-        if (entityLogs.length === 0) {
-            return NextResponse.json({ error: "Proof JSON not found for this entity." }, { status: 404 });
+
+        const latestDir = dirs[0];
+        const proofPath = path.join(executionsDir, latestDir, "proof", "proof.json");
+
+        if (!fs.existsSync(proofPath)) {
+            return NextResponse.json({ error: "Proof file not found on disk." }, { status: 404 });
         }
 
-        const latestProof = entityLogs[entityLogs.length - 1];
-
-        let bytecode = latestProof.starkProofBytecode;
-        if (!bytecode && latestProof.executionId) {
-            const proofPath = path.join(process.cwd(), "..", "circuit", "target", "execute", "zkreserves_circuit", `execution${latestProof.executionId}`, "proof", "proof.json");
-            if (fs.existsSync(proofPath)) {
-                bytecode = fs.readFileSync(proofPath, "utf8");
-            } else {
-                return NextResponse.json({ error: "Proof file not found on disk." }, { status: 404 });
-            }
-        }
+        const bytecode = fs.readFileSync(proofPath, "utf8");
 
         return NextResponse.json({
             success: true,

@@ -5,6 +5,7 @@ import { computeEntityId, computeLiabilityRoot } from "@/lib/merkle";
 import { satoshiToBTC, getMultipleBalances, getCurrentBlockHeight } from "@/lib/xverse";
 import { generateProof, type ProofGenerationProgress } from "@/lib/circuit";
 import { REGISTRY_ADDRESS, provider, feltToHash } from "@/lib/starknet";
+import { TokenBTC, TokenETH, TokenUSDC, TokenSOL } from "@web3icons/react";
 import Link from "next/link";
 import {
     WalletIcon,
@@ -17,6 +18,16 @@ import {
     InformationCircleIcon,
     ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
+
+const getTokenIcon = (symbol: string) => {
+    switch (symbol.toUpperCase()) {
+        case "BTC": return <TokenBTC size={22} />;
+        case "ETH": return <TokenETH size={22} />;
+        case "USDC": return <TokenUSDC size={22} />;
+        case "SOL": return <TokenSOL size={22} />;
+        default: return <CurrencyDollarIcon style={{ width: 22, height: 22, color: "var(--accent)" }} />;
+    }
+};
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -50,18 +61,26 @@ export default function ProvePage() {
     const [proof, setProof] = useState<any>(null);
     const [progressSteps, setProgressSteps] = useState<ProofGenerationProgress[]>([]);
     const [loading, setLoading] = useState(false);
+    const [targetWallet, setTargetWallet] = useState<string>("");
     const [error, setError] = useState("");
     const [txHash, setTxHash] = useState("");
     const fileRef = useRef<HTMLInputElement>(null);
 
     const uniqueConnectors = connectors.filter((c, idx, arr) => arr.findIndex(x => x.id === c.id) === idx);
 
-    // ── Lookup Entity ────────────────────────────────────────────────────────
     useEffect(() => {
         if (!walletAddress) {
             setLoadingEntity(false);
             return;
         }
+        if (!targetWallet && walletAddress) {
+            setTargetWallet(walletAddress);
+        }
+    }, [walletAddress]);
+
+    // ── Lookup Entity ────────────────────────────────────────────────────────
+    useEffect(() => {
+        if (!targetWallet) return;
 
         async function findEntity() {
             setLoadingEntity(true);
@@ -74,7 +93,7 @@ export default function ProvePage() {
                     const id = idRes[0];
                     const rec = await provider.callContract({ contractAddress: REGISTRY_ADDRESS, entrypoint: "get_entity", calldata: [id] });
 
-                    if (rec[2]?.toLowerCase() === walletAddress?.toLowerCase() || feltToHash(rec[2]) === feltToHash(walletAddress || "")) {
+                    if (rec[2]?.toLowerCase() === targetWallet?.toLowerCase() || feltToHash(rec[2]) === feltToHash(targetWallet || "")) {
                         setEntityInfo({ id: "0x" + BigInt(id).toString(16), nameHash: rec[0] });
                         setLoadingEntity(false);
                         return;
@@ -88,7 +107,7 @@ export default function ProvePage() {
         }
 
         findEntity();
-    }, [walletAddress]);
+    }, [targetWallet]);
 
     // ── Pre-fill addresses from local storage if returning ────────────────
     useEffect(() => {
@@ -106,9 +125,20 @@ export default function ProvePage() {
         setLoading(true);
         try {
             if (assetType === "BTC") {
-                const addrs = entries.map(e => e.address.trim());
-                const isTestnet = addrs.every(a => a.startsWith("tb1") || a.startsWith("m") || a.startsWith("n"));
-                const [bals, height] = await Promise.all([getMultipleBalances(addrs), getCurrentBlockHeight(isTestnet)]);
+                const btcEntries = entries.map(e => ({ address: e.address.trim(), network: e.network }));
+
+                // Get balances
+                const bals = await getMultipleBalances(btcEntries);
+
+                // Get block height from the "most mainnet-like" network in the batch
+                // Fallback: Testnet < Signet < Bitcoin
+                let bestNetwork = "testnet4";
+                if (btcEntries.some(e => e.network === "bitcoin")) bestNetwork = "bitcoin";
+                else if (btcEntries.some(e => e.network === "signet")) bestNetwork = "signet";
+                else if (btcEntries.some(e => e.network === "testnet")) bestNetwork = "testnet";
+
+                const height = await getCurrentBlockHeight(bestNetwork);
+
                 setBalances(bals);
                 setBlockHeight(height);
             } else if (assetType === "ETH" || assetType === "USDC") {
@@ -284,8 +314,22 @@ export default function ProvePage() {
                     <div className="card card-lg" style={{ textAlign: "center", padding: "48px 32px" }}>
                         <ExclamationTriangleIcon style={{ width: 40, height: 40, color: "var(--text-dim)", margin: "0 auto 16px" }} />
                         <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Entity Not Found</h2>
-                        <p className="text-muted mb-6" style={{ maxWidth: 360, margin: "0 auto 24px" }}>
-                            We couldn&apos;t find an entity registered to <code className="mono-sm">{walletAddress?.slice(0, 10)}...</code>
+                        <p className="text-muted" style={{ marginBottom: 28, maxWidth: 360, margin: "0 auto 28px" }}>
+                            You can prove reserves for an entity if you are its authorized registrant.
+                        </p>
+                        <div className="field mb-4" style={{ textAlign: "left" }}>
+                            <label className="label">Target Authorized Wallet Address (Defaults to Connected)</label>
+                            <input
+                                type="text"
+                                className="input input-mono w-full mb-2"
+                                placeholder={`e.g. ${walletAddress}`}
+                                value={targetWallet}
+                                onChange={(e) => setTargetWallet(e.target.value)}
+                            />
+                        </div>
+                        <p className="text-muted" style={{ marginBottom: 28, maxWidth: 360, margin: "0 auto 28px" }}>
+                            A target authorized wallet address is required to find your entity registration.
+                            The transaction will still be submitted via your connected wallet.
                         </p>
                         <Link href="/onboard" className="btn btn-primary">Go to Registration Wizard</Link>
                     </div>
@@ -320,7 +364,7 @@ export default function ProvePage() {
                         {step === 1 && (
                             <div className="card card-lg">
                                 <div className="flex items-center gap-3 mb-4">
-                                    <CurrencyDollarIcon style={{ width: 22, height: 22, color: "var(--accent)" }} />
+                                    {getTokenIcon(assetType)}
                                     <h2 style={{ fontSize: 16, fontWeight: 600 }}>Verify wallet addresses</h2>
                                 </div>
                                 <p className="text-muted mb-4" style={{ fontSize: 13, lineHeight: 1.7 }}>
@@ -328,16 +372,49 @@ export default function ProvePage() {
                                 </p>
                                 <div className="field mb-4">
                                     <label className="label">Select Digital Asset</label>
-                                    <select className="input input-mono mb-2" value={assetType} onChange={e => setAssetType(e.target.value)} style={{ appearance: "auto", paddingRight: 32 }}>
-                                        <option value="BTC">Bitcoin (BTC) - via Xverse API</option>
-                                        <option value="ETH">Ethereum (ETH) - via Public RPC</option>
-                                        <option value="USDC">USD Coin (USDC) - via Smart Contract</option>
-                                        <option value="SOL">Solana (SOL) - Mocked for Demo</option>
-                                    </select>
+                                    <div className="flex items-center gap-3">
+                                        <div style={{ minWidth: "22px" }}>{getTokenIcon(assetType)}</div>
+                                        <select className="input input-mono w-full mb-2" value={assetType} onChange={e => setAssetType(e.target.value)} style={{ appearance: "auto", paddingRight: 32 }}>
+                                            <option value="BTC">Bitcoin (BTC) - via Xverse API</option>
+                                            <option value="ETH">Ethereum (ETH) - via Public RPC</option>
+                                            <option value="USDC">USD Coin (USDC) - via Smart Contract</option>
+                                            <option value="SOL">Solana (SOL) - Mocked for Demo</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div className="field mb-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <label className="label" style={{ marginBottom: 0 }}>Wallet Addresses ({assetType})</label>
+                                        <div>
+                                            <input
+                                                type="file"
+                                                accept=".csv,.txt"
+                                                style={{ display: "none" }}
+                                                id="walletCsvUpload"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (!file) return;
+                                                    const reader = new FileReader();
+                                                    reader.onload = (ev) => {
+                                                        const text = ev.target?.result as string;
+                                                        if (!text) return;
+                                                        const lines = text.split("\n").filter(l => l.trim() && !l.toLowerCase().startsWith("address"));
+                                                        const parsed = lines.map(l => {
+                                                            const parts = l.split(",");
+                                                            const address = parts[0]?.trim() || "";
+                                                            const network = parts[1]?.trim() || (assetType === "BTC" ? "bitcoin" : "ethereum_sepolia");
+                                                            return { address, network };
+                                                        }).filter(entry => entry.address);
+                                                        if (parsed.length > 0) setAddressEntries(parsed);
+                                                        e.target.value = ""; // Reset
+                                                    };
+                                                    reader.readAsText(file);
+                                                }}
+                                            />
+                                            <label htmlFor="walletCsvUpload" className="btn btn-secondary btn-sm" style={{ cursor: "pointer", fontSize: 11, padding: "4px 8px" }}>
+                                                <ArrowUpTrayIcon style={{ width: 12, height: 12 }} /> Upload CSV
+                                            </label>
+                                        </div>
                                     </div>
 
                                     {addressEntries.map((entry, idx) => (
@@ -352,7 +429,7 @@ export default function ProvePage() {
                                                     setAddressEntries(newEntries);
                                                 }}
                                             />
-                                            {(assetType === "ETH" || assetType === "USDC") && (
+                                            {assetType !== "SOL" && (
                                                 <select
                                                     className="input input-mono"
                                                     value={entry.network}
@@ -363,9 +440,20 @@ export default function ProvePage() {
                                                     }}
                                                     style={{ appearance: "auto", minWidth: 160 }}
                                                 >
-                                                    <option value="ethereum_sepolia">Eth Sepolia</option>
-                                                    <option value="base_sepolia">Base Sepolia</option>
-                                                    <option value="arbitrum_sepolia">Arb Sepolia</option>
+                                                    {(assetType === "ETH" || assetType === "USDC") ? (
+                                                        <>
+                                                            <option value="ethereum_sepolia">Eth Sepolia</option>
+                                                            <option value="base_sepolia">Base Sepolia</option>
+                                                            <option value="arbitrum_sepolia">Arb Sepolia</option>
+                                                        </>
+                                                    ) : assetType === "BTC" ? (
+                                                        <>
+                                                            <option value="bitcoin">Bitcoin</option>
+                                                            <option value="signet">Signet</option>
+                                                            <option value="testnet">Testnet</option>
+                                                            <option value="testnet4">Testnet4</option>
+                                                        </>
+                                                    ) : null}
                                                 </select>
                                             )}
                                             <button
