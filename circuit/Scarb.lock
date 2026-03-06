@@ -2,5 +2,5 @@
 version = 1
 
 [[package]]
-name = "zkreserves_circuit"
+name = "starkproof_circuit"
 version = "0.1.0"

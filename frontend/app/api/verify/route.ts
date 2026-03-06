@@ -4,7 +4,15 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
 
-        const proverUrl = process.env.PROVER_API_URL || "http://127.0.0.1:8080";
+        let proverUrl = process.env.PROVER_API_URL || "http://127.0.0.1:8080";
+        try {
+            const { cookies } = require('next/headers');
+            const cookieStore = await cookies();
+            const stored = cookieStore.get('prover_url')?.value;
+            if (stored) proverUrl = stored;
+        } catch (e) {
+            // Ignore cookie errors, fallback to default
+        }
         const baseUrl = proverUrl.endsWith('/') ? proverUrl.slice(0, -1) : proverUrl;
         // Pass request natively through to the Express Prover API backend
         const response = await fetch(`${baseUrl}/api/verify`, {

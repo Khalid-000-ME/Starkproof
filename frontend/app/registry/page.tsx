@@ -55,7 +55,7 @@ export default function RegistryPage() {
     const fetchRef = useRef<(() => Promise<void>) | null>(null);
 
     const [rawEvents, setRawEvents] = useState<any[]>([]);
-    const [timeline, setTimeline] = useState("5d");
+    const [timeline, setTimeline] = useState("1m");
     const [showAuthorizedOnly, setShowAuthorizedOnly] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
 

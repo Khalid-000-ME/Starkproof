@@ -8,7 +8,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     try {
         const { id } = await params;
         const idParam = id.toLowerCase();
-        const target = `${process.env.PROVER_API_URL || "http://localhost:8080"}/api/proof/${idParam}`;
+
+        let proverUrl = process.env.PROVER_API_URL || "http://127.0.0.1:8080";
+        try {
+            const { cookies } = require('next/headers');
+            const cookieStore = await cookies();
+            const stored = cookieStore.get('prover_url')?.value;
+            if (stored) proverUrl = stored;
+        } catch (e) {
+            // Ignore cookie errors
+        }
+        const baseUrl = proverUrl.endsWith('/') ? proverUrl.slice(0, -1) : proverUrl;
+
+        const target = `${baseUrl}/api/proof/${idParam}`;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
