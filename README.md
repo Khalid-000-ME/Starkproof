@@ -16,28 +16,9 @@ customer-identifying information.
 The latest enhancements integrate native multi-chain support (Bitcoin via Xverse, EVM chains via public RPCs),
 and Native STARK verification utilizing Starkware's powerful Stwo prover as an independent verification layer.
 
-### Relayer Flow
+### Protocol Sequence
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Exchange as Exchange Company
-    participant Scarb as Scarb Prover (Relayer)
-    participant Starknet as Starknet (On-Chain)
-    participant User as Auditor / User
-    
-    Exchange->>Scarb: Submit Wallet Balances & Liability Data
-    Note over Scarb: Generate Liability Merkle Tree Hash
-    Note over Scarb: Run Cairo circuit to Generate STARK Proof
-    Scarb->>Starknet: Submit STARK Proof & Root Hash to Registry
-    Note over Scarb,Starknet: Relayer pays gas fees for transaction
-    Starknet-->>Exchange: Transaction Confirmed (Proof Published)
-    
-    User->>Starknet: Fetch STARK Proof & Root Hash
-    User->>User: Run STARK Verification locally
-    User->>Exchange: Request personal Merkle Branch
-    User->>User: Verify Merkle Branch Inclusion
-```
+![Protocol Sequence](frontend/public/diagrams/protocol_sequence.png)
 
 ---
 
@@ -156,7 +137,8 @@ sequenceDiagram
                           Merkle tree built client-side (private)
        │
        ▼
-  /onboard Step 5         ZK circuit runs in browser
+  /onboard Step 5         Frontend requests STARK proof from local Prover API
+                          Local backend runs Scarb and Stwo prover
                           Proves: reserves >= liabilities
                           Commits: liability_merkle_root
                           Assigns: reserve_ratio_band
@@ -224,7 +206,7 @@ sequenceDiagram
 ## Zero-Knowledge Circuit
 
 ```
-  PRIVATE INPUTS (never leave the browser)       PUBLIC INPUTS (on-chain)
+  PRIVATE INPUTS (never leave the operator)      PUBLIC INPUTS (on-chain)
   ─────────────────────────────────────────       ───────────────────────
 
   BTC/ETH/USDC addresses                   ─────> entity_id
@@ -235,7 +217,7 @@ sequenceDiagram
              │
              ▼
   ┌─────────────────────────────────────┐
-  │     Cairo ZK Circuit (browser)     │
+  │     Cairo ZK Circuit (Prover API)  │
   │                                     │
   │  1. total_reserves = sum(balances)  │
   │  2. Build Poseidon Merkle tree      │
@@ -293,40 +275,7 @@ sequenceDiagram
   4. Comparing to on-chain liability_merkle_root
 ```
 
----
 
-## Automation Candidates (AI Agent Layer)
-
-```
-  AGENT 1 -- Proof Renewal Watchdog
-  ─────────────────────────────────
-  Polls Starknet every 24 hours.
-  Alerts operator when proof expires in <= 3 days.
-  Can trigger automated re-proof with pre-configured wallets.
-  Endpoint: /api/scheduler/check-expiry
-
-  AGENT 2 -- Liability CSV Ingestor
-  ──────────────────────────────────
-  Connects to exchange internal DB.
-  Queries user balances nightly.
-  Auto-formats into account_id,liability_satoshi CSV.
-  Sends to /api/proof/generate without manual intervention.
-
-  AGENT 3 -- Ecosystem Watchdog
-  ──────────────────────────────
-  Monitors reserve_ratio_band across all entities.
-  Alerts if band drops from 3 -> 2 -> 1 over submissions.
-  Publishes Discord/Telegram notifications.
-  Endpoint: /api/ecosystem/stats
-
-  AGENT 4 -- Audit Report Generator
-  ───────────────────────────────────
-  On proof submission, reads public inputs from Starknet.
-  Generates formal PDF audit report via LLM.
-  Publishable by the exchange as compliance documentation.
-```
-
----
 
 ## Tech Stack
 
@@ -379,8 +328,6 @@ sequenceDiagram
   │   │       ├── proof/generate/        ZK proof generation
   │   │       ├── proof/submit/          Starknet submission relay
   │   │       ├── entity/[id]/status/    Entity status query
-  │   │       ├── ecosystem/stats/       Aggregate ecosystem stats
-  │   │       ├── scheduler/             Renewal watchdog endpoint
   │   │       └── verify/manual/         Manual verification logic
   │   │
   │   ├── components/
@@ -466,7 +413,17 @@ sncast --account=starkproof deploy \
   --network=sepolia
 ```
 
-### 5. Run Frontend
+### 5. Run Prover API Backend
+
+The prover API runs a local node server that orchestrates `scarb` to generate proofs directly requested by the frontend.
+
+```bash
+cd prover_api && npm install && node server.js
+```
+
+### 6. Run Frontend
+
+Open a new terminal window:
 
 ```bash
 cd frontend && npm run dev

@@ -1,0 +1,47 @@
+sequenceDiagram
+    participant Client as Exchange Operator
+    participant Server as Prover API
+    participant Facilitator as Scarb Engine
+    participant Blockchain as Starknet Registry
+    participant Auditor as Public Auditor
+    participant User as Exchange Customer
+
+    %% Proof Generation & Submission Flow
+    Client->>Server: Request ZK Proof
+    Server->>Client: Acknowledge Data Formats
+    
+    Client->>Client: Build Merkle Tree locally
+    
+    Client->>Server: Submit CSV and Public Inputs
+    
+    Server->>Facilitator: Execute Cairo Circuit
+    Facilitator->>Server: Execution Success Trace
+    
+    Server->>Facilitator: Generate STARK Proof
+    
+    Facilitator->>Blockchain: Submit Proof Transaction
+    Blockchain->>Facilitator: Transaction Confirmed
+    
+    Facilitator->>Server: Proof On-Chain Settled
+    
+    Server->>Client: Return Proof Bytecode
+
+    %% Independent Audit Flow
+    Auditor->>Blockchain: Query Entity Proof
+    Blockchain->>Auditor: Return Public Inputs
+    
+    Auditor->>Server: Fetch Proof Bytecode
+    Server->>Auditor: Return Proof JSON
+    
+    Auditor->>Auditor: Verify STARK Proof natively
+    
+    %% User Inclusion Verification Flow
+    User->>Client: Request Merkle Branch
+    Client->>User: Return Personal Merkle Branch
+    
+    User->>Blockchain: Fetch On-Chain Merkle Root
+    Blockchain->>User: Return Root Hash
+    
+    User->>User: Hash Own ID and Balance
+    User->>User: Ascend Branch to compute Root
+    User->>User: Verify computed Root Matches On-Chain

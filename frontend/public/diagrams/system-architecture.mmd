@@ -1,37 +1,130 @@
-graph TB
-    subgraph Browser [Browser - Operator]
-        UI[Next.js Frontend]
-        ZK[ZK Circuit Runner]
-        MK[Poseidon Merkle Builder]
-        XV[Xverse BTC Fetcher]
+graph TD
+    %% =======================
+    %% ACTORS
+    %% =======================
+    ExchangeOp["Exchange Operator<br/>(Custodial Entity)"]
+    PublicAuditor["Independent Auditor<br/>(Public / Exchange Client)"]
+
+    %% =======================
+    %% CLIENT BROWSER (FRONTEND)
+    %% =======================
+    subgraph BrowserSpace ["Frontend Application Layer (Browser)"]
+        direction TB
+        UI_Dash["Operator Dashboard UI"]
+        CSV_Parser["Liability CSV Parser<br/>& Local Processor"]
+        PoseidonBuilder["Merkle Tree Builder<br/>(Poseidon Hash)"]
+        XverseClient["Xverse/Mempool Client"]
+        WalletConn{"Braavos/Starknet Wallet Interface"}
+        
+        UI_Dash --- CSV_Parser
+        UI_Dash --- XverseClient
+        CSV_Parser --> PoseidonBuilder
     end
 
-    subgraph API [Next.js API Routes]
-        PG[/api/proof/generate]
-        PS[/api/proof/submit]
-        ES[/api/ecosystem/stats]
-        VM[/api/verify/manual]
+    %% =======================
+    %% EXTERNAL DATA SOURCES
+    %% =======================
+    subgraph ExternalSources ["External Blockchain Analytics"]
+        XverseAPI{"Xverse API<br/>(SecretKeyLabs)"}
+        MempoolSpace{"Mempool.space<br/>Fallback"}
+        BTC_Network[("Bitcoin Mainnet / Testnet4")]
+        
+        XverseAPI -.-> BTC_Network
+        MempoolSpace -.-> BTC_Network
     end
 
-    subgraph Starknet [Starknet Sepolia]
-        RR[ReservesRegistry.cairo]
-        PSC[ProofScheduler.cairo]
+    %% =======================
+    %% LOCAL PROVER BACKEND
+    %% =======================
+    subgraph ProverNode ["Local Prover Backend (Node.js Server)"]
+        direction TB
+        ServerRouter{"Execution Orchestrator<br/>REST Endpoints"}
+        
+        subgraph ScarbEngine ["Scarb & Execution Pipeline"]
+            ScarbBuild["Scarb Build Phase"]
+            CairoCompiler["Cairo STARK Compiler"]
+            CairoRunner["Cairo Runner execution.json"]
+        end
+        
+        subgraph ZK_Circuit ["Zero-Knowledge Circuit Logic"]
+            Constraint1["Constraint: sum Reserves >= sum Liabilities"]
+            Constraint2["Constraint: Poseidon Merkle Root derivation"]
+            Constraint3["Constraint: Compute Ratio Band 0, 1, 2, 3"]
+            Constraint4["Constraint: Hash Commitment Generation"]
+        end
+        
+        subgraph ProverCore ["Stwo Prover Cryptography Backbone"]
+            TraceGen["STARK Trace Generator"]
+            Polynomial["Polynomial Commitment Schema"]
+            FRI["FRI Protocol Prover"]
+            Bytecode["STARK Bytecode Assembly"]
+        end
+
+        ServerRouter --> ScarbBuild
+        ScarbBuild --> CairoCompiler
+        CairoCompiler --> CairoRunner
+        CairoRunner --> ZK_Circuit
+        ZK_Circuit --> TraceGen
+        TraceGen --> Polynomial
+        Polynomial --> FRI
+        FRI --> Bytecode
+        Bytecode -->|starkproof JSON| ServerRouter
     end
 
-    subgraph BTC [Bitcoin Network]
-        XAPI[Xverse API]
-        BTCN[Bitcoin Blockchain]
+    %% =======================
+    %% BLOCKCHAIN SETTLEMENT
+    %% =======================
+    subgraph StarknetChain ["Starknet Sepolia Network"]
+        direction LR
+        RPC_Node("Starknet RPC Node")
+        MemPool_SN[("Starknet Mempool")]
+        
+        subgraph SmartContracts ["Starkproof Smart Contracts"]
+            Registry("ReservesRegistry.cairo")
+            Scheduler("ProofScheduler.cairo")
+            
+            Registry -.->|State Tracking| Scheduler
+            Registry -.->|Storage: Commitments and Inputs| ContractState[("Starknet Storage Tree")]
+        end
+        
+        RPC_Node --> MemPool_SN
+        MemPool_SN --> Registry
     end
 
-    UI --> ZK
-    UI --> MK
-    XV --> XAPI
-    XAPI --> BTCN
-    UI --> PG
-    PG --> ZK
-    UI --> PS
-    PS --> RR
-    PS --> PSC
-    UI --> ES
-    ES --> RR
-    RR --> PSC
+    %% =======================
+    %% PUBLIC VERIFICATION
+    %% =======================
+    subgraph VerifierTools ["Local Verification Tools"]
+        VerifyUI["Solvency Verification UI"]
+        ScarbVerify["Scarb Native Verify CLI"]
+        MerkleBranch["Merkle Branch Inclusion Tool"]
+    end
+
+    %% =======================
+    %% RELATIONSHIPS / FLOWS
+    %% =======================
+    ExchangeOp -->|Uploads Client Liabilities CSV| CSV_Parser
+    ExchangeOp -->|Inputs Cold Wallets BTC| XverseClient
+    
+    XverseClient -->|Requests confirmed UTXOs and Balances| XverseAPI
+    XverseClient -->|Fallback Requests| MempoolSpace
+    
+    PoseidonBuilder -->|Yields liability_merkle_root| UI_Dash
+    XverseClient -->|Yields sum Reserves| UI_Dash
+    
+    UI_Dash -->|Sends Public and Private Inputs via HTTP| ServerRouter
+    
+    ServerRouter -->|Returns Native STARK Proof| UI_Dash
+    
+    UI_Dash -->|Prompts Signature Request| WalletConn
+    ExchangeOp -->|Signs Transaction| WalletConn
+    WalletConn -->|Submits Multicall Proof Commitment| RPC_Node
+    
+    PublicAuditor -->|Queries Entity Status| VerifyUI
+    VerifyUI -->|Fetches Public Inputs| RPC_Node
+    VerifyUI -->|Downloads Proof Bytecode| ServerRouter
+    VerifyUI -->|Passes Proof and Inputs| ScarbVerify
+    ScarbVerify -->|Mathematical STARK Verification| PublicAuditor
+    
+    PublicAuditor -->|Inputs AccountID and Balance| MerkleBranch
+    MerkleBranch -->|Compares Hash| ContractState

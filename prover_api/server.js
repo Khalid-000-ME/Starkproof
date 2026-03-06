@@ -74,19 +74,21 @@ function run(bin, args) {
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function sumToSats(balances) {
-    return (balances || []).reduce((acc, b) => acc + Math.round(Number(b) * 1e8), 0);
+    // walletBalances are already in satoshis from the Xverse API
+    return (balances || []).reduce((acc, b) => acc + Math.round(Number(b)), 0);
 }
 
 function parseLiabilitiesCSV(csv) {
     const lines = (csv || '').split('\n')
         .map(l => l.trim())
-        .filter(l => l && !l.startsWith('#'));
+        .filter(l => l && !l.startsWith('#') && !l.startsWith('account'));
     let total = 0;
     for (const line of lines) {
         const parts = line.split(',');
         const val = parseFloat(parts[1] || '0');
-        if (!isNaN(val)) {
-            total += Math.round(val * 1e8);
+        // CSV liabilities are already in satoshis (written by the frontend Merkle builder)
+        if (!isNaN(val) && val > 0) {
+            total += Math.round(val);
         }
     }
     return total;
