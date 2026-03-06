@@ -42,5 +42,6 @@ cairo-run
 release.tar.gz
 trace.bin
 
+*.dmg
 *.csv
 new.json
