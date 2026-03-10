@@ -67,7 +67,6 @@ export default function Navbar() {
 
                 {/* Right actions */}
                 <div className="navbar-actions">
-                    <span className="badge badge-orange" style={{ fontSize: 10 }}>Sepolia</span>
 
                     {isConnected ? (
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -101,7 +100,7 @@ export default function Navbar() {
                             className="btn btn-primary btn-sm"
                         >
                             <WalletIcon style={{ width: 14, height: 14 }} />
-                            {isLanding ? "Connect & Register" : "Connect Wallet"}
+                            Connect Wallet
                         </button>
                     )}
                 </div>

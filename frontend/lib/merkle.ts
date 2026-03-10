@@ -3,7 +3,7 @@
 
 import { hash } from "starknet";
 
-function poseidonHashMany(values: bigint[]): bigint {
+export function poseidonHashMany(values: bigint[]): bigint {
     return BigInt(hash.computePoseidonHashOnElements(values.map(v => "0x" + v.toString(16))));
 }
 
@@ -39,6 +39,40 @@ export function computeMerkleRoot(leaves: bigint[]): bigint {
     return currentLevel[0];
 }
 
+export function computeMerkleBranch(leaves: bigint[], targetIndex: number): Array<{ side: "left" | "right", hash: string }> {
+    if (leaves.length === 0 || targetIndex < 0 || targetIndex >= leaves.length) throw new Error("Invalid target index");
+    
+    let currentLevel = [...leaves];
+    let currentIndex = targetIndex;
+    const branch: Array<{ side: "left" | "right", hash: string }> = [];
+
+    while (currentLevel.length > 1) {
+        const nextLevel: bigint[] = [];
+        let nextIndex = 0;
+        
+        for (let i = 0; i < currentLevel.length; i += 2) {
+            const left = currentLevel[i];
+            const right = i + 1 < currentLevel.length ? currentLevel[i + 1] : left;
+            
+            if (i === currentIndex || i + 1 === currentIndex) {
+                if (i === currentIndex) {
+                    branch.push({ side: "right", hash: "0x" + right.toString(16) });
+                } else {
+                    branch.push({ side: "left", hash: "0x" + left.toString(16) });
+                }
+                nextIndex = nextLevel.length;
+            }
+            
+            nextLevel.push(poseidonHashMany([left, right]));
+        }
+        
+        currentLevel = nextLevel;
+        currentIndex = nextIndex;
+    }
+
+    return branch;
+}
+
 /**
  * Parse a CSV string with columns: account_id_hash,liability_satoshi
  * Returns the Merkle root and leaf count.
@@ -48,6 +82,7 @@ export function computeLiabilityRoot(csvData: string): {
     leafCount: number;
     totalLiability: bigint;
     leaves: Array<{ id: string; amount: bigint }>;
+    leafHashes: bigint[];
 } {
     const lines = csvData
         .trim()
@@ -98,6 +133,7 @@ export function computeLiabilityRoot(csvData: string): {
         leafCount: leaves.length,
         totalLiability,
         leaves,
+        leafHashes
     };
 }
 

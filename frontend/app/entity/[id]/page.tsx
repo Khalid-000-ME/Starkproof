@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { provider, REGISTRY_ADDRESS, feltToHash } from "@/lib/starknet";
-import { computeProofCommitment } from "@/lib/merkle";
+import { computeProofCommitment, computeLiabilityRoot, computeMerkleBranch } from "@/lib/merkle";
 import ProofStatusBadge from "@/components/ProofStatusBadge";
 import ReserveRatioBand from "@/components/ReserveRatioBand";
 import ProofCountdown from "@/components/ProofCountdown";
@@ -355,10 +355,6 @@ export default function EntityPage() {
             let currentHash = leaf;
             // E.g. [{"side":"left","hash":"0xabc..."}, {"side":"right","hash":"0xdef..."}]
             for (const p of pathObj) {
-                if (p.hash === "0x_mock_verify") {
-                    currentHash = BigInt(entity.merkleRoot);
-                    break;
-                }
                 if (p.side === "left") {
                     currentHash = BigInt(hash.computePoseidonHashOnElements([p.hash, "0x" + currentHash.toString(16)]));
                 } else {
@@ -376,25 +372,61 @@ export default function EntityPage() {
         }
     }
 
-    function handleAutoGenerateBranch() {
+    // Reference for the mock CSV file upload
+    const branchCsvRef = useRef<HTMLInputElement>(null);
+
+    function handleBranchCsvUpload(e: React.ChangeEvent<HTMLInputElement>) {
         if (!accountId || !balanceSat) {
-            alert("Please input your Account ID and Balance to generate the corresponding Merkle branch.");
+            alert("Please input your Account ID and Balance before uploading the CSV.");
             return;
         }
 
-        // Produce a mock simulated branch to demonstrate completion visually
-        // In a live environment, the user would request this from the exchange's exported transparency data.
-        const mockBranch = [
-            { side: "left", hash: "0x_mock_verify" },
-            { side: "right", hash: "0x00000000000000000000000000000000000000000" }
-        ];
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-        setMerklePath(JSON.stringify(mockBranch, null, 2));
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const csvData = (ev.target?.result as string) || "";
+                // Parse CSV and build the full tree exactly as the operator did
+                const { root, leaves, leafHashes } = computeLiabilityRoot(csvData);
 
-        // Let React state settle then trigger verify
-        setTimeout(() => {
-            document.getElementById('verify-btn')?.click();
-        }, 50);
+                // Ensure the extracted root matches what is on-chain (sanity check)
+                if (BigInt(root) !== BigInt(entity.merkleRoot)) {
+                    alert("The uploaded CSV produces a different total Merkle Root than the one published on-chain! This implies the operator used different data.");
+                    return;
+                }
+
+                // Find the user's index in the CSV
+                const targetIndex = leaves.findIndex(l => l.id.trim() === accountId.trim());
+                
+                if (targetIndex === -1) {
+                    alert("Your Account ID was NOT found in this CSV.");
+                    return;
+                }
+
+                // Verify the balance matches the CSV record
+                if (leaves[targetIndex].amount !== BigInt(balanceSat)) {
+                    alert(`Balance mismatch! You entered ${balanceSat}, but the CSV says ${leaves[targetIndex].amount.toString()}`);
+                    return;
+                }
+
+                // Everything matches, generate the exact mathematical branch!
+                const realBranch = computeMerkleBranch(leafHashes, targetIndex);
+                setMerklePath(JSON.stringify(realBranch));
+
+                setTimeout(() => {
+                    document.getElementById('verify-btn')?.click();
+                }, 100);
+
+            } catch (err: any) {
+                alert("Failed to parse branch from CSV: " + err.message);
+            }
+            
+            // Reset file input
+            if (branchCsvRef.current) branchCsvRef.current.value = "";
+        };
+        reader.readAsText(file);
     }
 
     if (loading) {
@@ -609,9 +641,10 @@ export default function EntityPage() {
                         <div className="section-title mb-1 flex justify-between items-center w-full">
                             <span>Verify Inclusion</span>
                             <div className="flex gap-2">
-                                <button className="btn btn-secondary btn-sm" onClick={() => handleAutoGenerateBranch()}>
-                                    Auto-Generate Merkle Branch
+                                <button className="btn btn-secondary btn-sm" onClick={() => branchCsvRef.current?.click()}>
+                                    Fetch Branch from CSV
                                 </button>
+                                <input type="file" accept=".csv" ref={branchCsvRef} style={{ display: "none" }} onChange={handleBranchCsvUpload} />
                             </div>
                         </div>
                         <p className="text-muted text-sm mb-4">

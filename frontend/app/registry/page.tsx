@@ -66,9 +66,9 @@ export default function RegistryPage() {
 
                 const eventKey = hash.getSelectorFromName("ProofSubmitted");
 
-                // Scan the last ~500k blocks to get deeper timeline history 
+                // Scan the last ~5M blocks to get deeper timeline history 
                 const currentBlock = await provider.getBlockNumber();
-                const fromBlock = Math.max(0, currentBlock - 500000);
+                const fromBlock = Math.max(0, currentBlock - 5000000);
 
                 let allEvents: any[] = [];
                 let continuationToken: string | undefined = undefined;
